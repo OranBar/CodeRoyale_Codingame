@@ -11,15 +11,6 @@ using System.Runtime.CompilerServices;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-
-enum PlayerAction
-{
-    WAIT = 0,
-    MOVE = 1,
-    BUILD = 2,
-    TRAIN = 3
-}
-
 public class Position
 {
     public int x, y;
@@ -51,13 +42,17 @@ public abstract class IAction
     }
 }
 
+
 public class TurnAction : IAction
 {
-    public List<IAction> actions;
+    public IAction buildAction;
+    public IAction trainAction;
 
     public TurnAction()
     {
         this.message = "";
+        buildAction = new Wait();
+        trainAction = new HaltTraing();
     }
     
     public TurnAction(string message) : base(message)
@@ -65,21 +60,75 @@ public class TurnAction : IAction
         this.message = "";
     }
 
+    public void PrintMove()
+    {
+        Console.WriteLine(buildAction.ToString());
+        Console.WriteLine(trainAction.ToString());
+    }
+
     public override string ToString_Impl()
     {
-        string result = "";
-        foreach (var action in actions)
-        {
-            result += action.ToString();
-            result += ";";
-        }
-
-        return result;
+        return "Invalid";
     }
 
     public override string ToString()
     {
         return ToString_Impl();
+    }
+}
+
+//
+//public class TurnAction : IAction
+//{
+//    public List<IAction> buildActions;
+//    public List<IAction> trainActions;
+//
+//    public TurnAction()
+//    {
+//        this.message = "";
+//        buildActions = new List<IAction>(){new Wait()};
+//        buildActions = new List<IAction>(){new HaltTraing()};
+//        
+//    }
+//    
+//    public TurnAction(string message) : base(message)
+//    {
+//        this.message = "";
+//    }
+//
+//    public override string ToString_Impl()
+//    {
+//        string result = "";
+//        foreach (var action in buildActions)
+//        {
+//            result += action.ToString();
+//            result += ";";
+//        }
+//
+//        result += "/n";
+//        
+//        foreach (var action in trainActions)
+//        {
+//            result += action.ToString();
+//            result += ";";
+//        }
+//
+//        return result;
+//    }
+//
+//    public override string ToString()
+//    {
+//        return ToString_Impl();
+//    }
+//}
+
+public class HaltTraing : IAction
+{
+    public string actionName = "TRAIN";
+    
+    public override string ToString_Impl()
+    {
+        return this.actionName;
     }
 }
 
@@ -166,31 +215,11 @@ public class Alexander
     
     }
     
-    public string think()
+    public TurnAction think()
     {
-        List<IAction> chosenMove = new List<IAction>();
+        TurnAction chosenMove = new TurnAction();
         
-        
-        // Default: No action found. Just wait
-        if (chosenMove.Any() == false)
-        {
-            chosenMove.Add(new Wait());
-        }
-        
-        string result = "";
-        Console.Error.WriteLine("Count: "+chosenMove.Count);
-
-        foreach (var action in chosenMove)
-        {
-            Console.Error.WriteLine("3");
-            result += action.ToString();
-            Console.Error.WriteLine("4");
-            result += ";";
-        }
-        Console.Error.WriteLine("Result = "+result);
-
-        
-        return result;
+        return chosenMove;
     }
 }
 
@@ -220,10 +249,8 @@ class Player
     static void Main(string[] args)
     {
         Alexander alexander = new Alexander();
-        Console.Error.WriteLine("1");
         alexander.ParseInputs();
-        Console.Error.WriteLine("2");
-        string move = alexander.think();
-        Console.WriteLine(move);
+        TurnAction move = alexander.think();
+        move.PrintMove();
     }
 }
