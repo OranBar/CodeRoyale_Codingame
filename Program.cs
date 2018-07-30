@@ -255,7 +255,8 @@ public enum UnitType
 {
     Queen = -1,
     Knight = 0,
-    Archer = 1
+    Archer = 1,
+    Giant = 2
 }
 
 public enum StructureType
@@ -343,7 +344,7 @@ public class LaPulzellaD_Orleans
 
         IEnumerable<Site> ownedBarrackses = currGameState.sites.Where(s => s.owner == Owner.Friendly);
         
-        
+        // ReSharper disable once ReplaceWithSingleCallToFirstOrDefault
         Site closestUnbuiltSite = SortSites_ByDistance(myQueen.pos, currGameState.sites)
             .Where(s => s.owner == Owner.Neutral)
             .FirstOrDefault();
@@ -353,27 +354,35 @@ public class LaPulzellaD_Orleans
         {
             touchedSite = currGameState.sites[currGameState.touchedSite];
         }
+
+        int owned_knight_barrackses = ownedBarrackses.Count(ob => ob.creepsType == UnitType.Knight);
+        int owned_archer_barrackses = ownedBarrackses.Count(ob => ob.creepsType == UnitType.Archer);
+        int owned_giant_barrackses = ownedBarrackses.Count(ob => ob.creepsType == UnitType.Giant);
+
+        int total_owner_barrackses = owned_archer_barrackses + owned_giant_barrackses + owned_knight_barrackses;
         
+        bool touchingNeutralSite = touchedSite != null && touchedSite.owner == Owner.Neutral;
         
-        
-        
-        if (touchedSite != null && touchedSite.owner == Owner.Neutral)
+        if (touchingNeutralSite)
         {
-            if (ownedBarrackses.Count(ob => ob.creepsType == UnitType.Knight) < MAX_BARRACKSES_KNIGHTS)
+            //Build
+            if (owned_knight_barrackses < MAX_BARRACKSES_KNIGHTS)
             {
                 chosenMove.queenAction = new Build(currGameState.touchedSite, BarracksType.Knight);
             }
-            if (ownedBarrackses.Count(ob => ob.creepsType == UnitType.Archer) < MAX_BARRACKSES_ARCER)
+            if (owned_archer_barrackses < MAX_BARRACKSES_ARCER)
             {
                 chosenMove.queenAction = new Build(currGameState.touchedSite, BarracksType.Archer);
             }
         }
-        else if(ownedBarrackses.Count() < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER)
+        else if(total_owner_barrackses < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER)
         {
+            //Go to next closest site
             chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltSite).pos);
         }
         else
         {
+            //Run to angle
             Position[] angles = { new Position(0,0), new Position(1920,1000)};
             Position targetAngle;
 
@@ -386,10 +395,12 @@ public class LaPulzellaD_Orleans
         
         if (baraccksesToTrainFrom.Any())
         {
+            //Train
             chosenMove.trainAction = new Train(baraccksesToTrainFrom); 
         }
         else
         {
+            //Wait
             chosenMove.trainAction = new HaltTraing();
         }
         
