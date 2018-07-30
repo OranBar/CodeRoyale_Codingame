@@ -76,6 +76,11 @@ public class TurnAction : IAction
 
         return result;
     }
+
+    public override string ToString()
+    {
+        return ToString_Impl();
+    }
 }
 
 public class Train : IAction
@@ -124,44 +129,41 @@ public class Alexander
             int y = int.Parse(inputs[2]);
             int radius = int.Parse(inputs[3]);
         }
-
-        // game loop
-        while (true)
+       
+        inputs = Console.ReadLine().Split(' ');
+        int gold = int.Parse(inputs[0]);
+        int touchedSite = int.Parse(inputs[1]); // -1 if none
+        for (int i = 0; i < numSites; i++)
         {
             inputs = Console.ReadLine().Split(' ');
-            int gold = int.Parse(inputs[0]);
-            int touchedSite = int.Parse(inputs[1]); // -1 if none
-            for (int i = 0; i < numSites; i++)
-            {
-                inputs = Console.ReadLine().Split(' ');
-                int siteId = int.Parse(inputs[0]);
-                int ignore1 = int.Parse(inputs[1]); // used in future leagues
-                int ignore2 = int.Parse(inputs[2]); // used in future leagues
-                int structureType = int.Parse(inputs[3]); // -1 = No structure, 2 = Barracks
-                int owner = int.Parse(inputs[4]); // -1 = No structure, 0 = Friendly, 1 = Enemy
-                int param1 = int.Parse(inputs[5]);
-                int param2 = int.Parse(inputs[6]);
-            }
-            int numUnits = int.Parse(Console.ReadLine());
-            for (int i = 0; i < numUnits; i++)
-            {
-                inputs = Console.ReadLine().Split(' ');
-                int x = int.Parse(inputs[0]);
-                int y = int.Parse(inputs[1]);
-                int owner = int.Parse(inputs[2]);
-                int unitType = int.Parse(inputs[3]); // -1 = QUEEN, 0 = KNIGHT, 1 = ARCHER
-                int health = int.Parse(inputs[4]);
-            }
+            int siteId = int.Parse(inputs[0]);
+            int ignore1 = int.Parse(inputs[1]); // used in future leagues
+            int ignore2 = int.Parse(inputs[2]); // used in future leagues
+            int structureType = int.Parse(inputs[3]); // -1 = No structure, 2 = Barracks
+            int owner = int.Parse(inputs[4]); // -1 = No structure, 0 = Friendly, 1 = Enemy
+            int param1 = int.Parse(inputs[5]);
+            int param2 = int.Parse(inputs[6]);
+        }
+        int numUnits = int.Parse(Console.ReadLine());
+        for (int i = 0; i < numUnits; i++)
+        {
+            inputs = Console.ReadLine().Split(' ');
+            int x = int.Parse(inputs[0]);
+            int y = int.Parse(inputs[1]);
+            int owner = int.Parse(inputs[2]);
+            int unitType = int.Parse(inputs[3]); // -1 = QUEEN, 0 = KNIGHT, 1 = ARCHER
+            int health = int.Parse(inputs[4]);
+        }
 
-            // Write an action using Console.WriteLine()
-            // To debug: Console.Error.WriteLine("Debug messages...");
+        // Write an action using Console.WriteLine()
+        // To debug: Console.Error.WriteLine("Debug messages...");
 
 
-            // First line: A valid queen action
-            // Second line: A set of training instructions
+        // First line: A valid queen action
+        // Second line: A set of training instructions
 //            Console.WriteLine("WAIT");
 //            Console.WriteLine("TRAIN");
-        }
+    
     }
     
     public string think()
@@ -170,18 +172,23 @@ public class Alexander
         
         
         // Default: No action found. Just wait
-        var nullOrEmpty = chosenMove == null || !chosenMove .Any();
-        if (nullOrEmpty)
+        if (chosenMove.Any() == false)
         {
-            chosenMove.Append(new Wait());
+            chosenMove.Add(new Wait());
         }
         
         string result = "";
+        Console.Error.WriteLine("Count: "+chosenMove.Count);
+
         foreach (var action in chosenMove)
         {
+            Console.Error.WriteLine("3");
             result += action.ToString();
+            Console.Error.WriteLine("4");
             result += ";";
         }
+        Console.Error.WriteLine("Result = "+result);
+
         
         return result;
     }
@@ -213,7 +220,9 @@ class Player
     static void Main(string[] args)
     {
         Alexander alexander = new Alexander();
+        Console.Error.WriteLine("1");
         alexander.ParseInputs();
+        Console.Error.WriteLine("2");
         string move = alexander.think();
         Console.WriteLine(move);
     }
