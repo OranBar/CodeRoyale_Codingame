@@ -1,4 +1,6 @@
-﻿using System;
+﻿/** Code by Oran Bar **/
+
+using System;
 using System.Linq;
 using System.IO;
 using System.Text;
@@ -7,11 +9,30 @@ using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 
 /**
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
+
+class Player
+{
+    static void Main(string[] args)
+    {
+        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+
+        giovannaD_Arco.ParseInputs_Begin();
+        
+        while (true)
+        {
+            giovannaD_Arco.ParseInputs_Turn();
+            TurnAction move = giovannaD_Arco.think();
+            move.PrintMove();
+        }
+    }
+}
+
 public class Position
 {
     public int x, y;
@@ -25,6 +46,11 @@ public class Position
     public override string ToString()
     {
         return $"({x},{y})";
+    }
+
+    public double DistanceSqr(Position distanceTo)
+    {
+        return Math.Pow((this.x - distanceTo.x), 2) + Math.Pow((this.y - distanceTo.y), 2);
     }
 }
 
@@ -53,7 +79,6 @@ public abstract class IAction
 
     }
 }
-
 
 public class TurnAction : IAction
 {
@@ -94,8 +119,11 @@ public class TurnAction : IAction
 public class HaltTraing : IAction
 {
     public string actionName = "TRAIN";
-    
-    public HaltTraing(string message = "") : base(message){}
+
+    public HaltTraing(string message = "") : base(message)
+    {
+        if(message != ""){throw new ArgumentException();}
+    }
 
     
     public override string ToString_Impl()
@@ -107,13 +135,24 @@ public class HaltTraing : IAction
 public class Train : IAction
 {
     public string actionName = "TRAIN";
-    public int siteId;
+    public List<int> siteIds;
 
     public Train(string message = "") : base(message){}
-    
+
+    public Train(IEnumerable<Site> baraccksesToTrainFrom)
+    {
+        siteIds = baraccksesToTrainFrom.Select(s => s.siteId).ToList();
+    }
+
     public override string ToString_Impl()
     {
-        return this.actionName + " "+ this.siteId;
+        string result = this.actionName;
+        foreach (var siteId in siteIds)
+        {
+            result += " " + siteId;
+        }
+
+        return result;
     }
 }
 
@@ -136,9 +175,17 @@ public class Wait : IAction
 public class Move : IAction
 {
     public string actionName = "MOVE";
-    public Position targetPos; 
+    public Position targetPos;
+
+    public Move(Position pos, string message = "") : base(message)
+    {
+        targetPos = pos;
+    }
     
-    public Move(string message = "") : base(message){}
+    public Move(int x, int y, string message = "") : base(message)
+    {
+        targetPos = new Position(x,y);
+    }
     
     public override string ToString_Impl()
     {
@@ -146,95 +193,48 @@ public class Move : IAction
     }
 }
 
-#endregion
-
-public class LaPulzellaD_Orleans
+public class Build : IAction
 {
-    public GameInfo game;
+    public int siteId;
+    public string barracks_type;
 
-    public GameState currentGameState;
-    
-    public void ParseInputs_Turn()
+    public Build(int siteId, BarracksType barracksType, string message = "") : base(message)
     {
-        string[] inputs;
-
-        currentGameState = new GameState();
-        
-        inputs = Console.ReadLine().Split(' ');
-        currentGameState.gold = int.Parse(inputs[0]);
-        currentGameState.touchedSite = int.Parse(inputs[1]); // -1 if none
-        for (int i = 0; i < game.numSites; i++)
-        {
-            inputs = Console.ReadLine().Split(' ');
-            int siteId = int.Parse(inputs[0]);
-            int ignore1 = int.Parse(inputs[1]); // used in future leagues
-            int ignore2 = int.Parse(inputs[2]); // used in future leagues
-            int structureType = int.Parse(inputs[3]); // -1 = No structure, 2 = Barracks
-            int owner = int.Parse(inputs[4]); // -1 = No structure, 0 = Friendly, 1 = Enemy
-            int param1 = int.Parse(inputs[5]);
-            int param2 = int.Parse(inputs[6]);
-            
-            Site site = new Site(siteId, ignore1, ignore2, structureType, owner, param1, param2);
-            currentGameState.sites.Add(site);
-        }
-        
-        int numUnits = int.Parse(Console.ReadLine());
-        for (int i = 0; i < numUnits; i++)
-        {
-            inputs = Console.ReadLine().Split(' ');
-            int x = int.Parse(inputs[0]);
-            int y = int.Parse(inputs[1]);
-            int owner = int.Parse(inputs[2]);
-            int unitType = int.Parse(inputs[3]); // -1 = QUEEN, 0 = KNIGHT, 1 = ARCHER
-            int health = int.Parse(inputs[4]);
-            
-            Unit unit = new Unit(x,y,owner,unitType,health);
-            currentGameState.units.Add(unit);
-        }
-    }
-    
-    public TurnAction think()
-    {
-        TurnAction chosenMove = new TurnAction();
-        
-        chosenMove.queenAction = new Wait("Wololoo");
-        chosenMove.trainAction = new HaltTraing("Be patient"); 
-        
-        return chosenMove;
+        this.siteId = siteId;
+        barracks_type = (barracksType == BarracksType.Knight) ? "KNIGHT" : "ARCHER" ;
     }
 
-    public void ParseInputs_Begin()
+    public override string ToString_Impl()
     {
-        game = new GameInfo();
-        string[] inputs;
-        game.numSites = int.Parse(Console.ReadLine());
-        
-        for (int i = 0; i < game.numSites; i++)
-        {
-            inputs = Console.ReadLine().Split(' ');
-            int siteId = int.Parse(inputs[0]);
-            int x = int.Parse(inputs[1]);
-            int y = int.Parse(inputs[2]);
-            int radius = int.Parse(inputs[3]);
-            
-            SiteInfo newSiteInfo = new SiteInfo(siteId, new Position(x,y), radius);
-            game.sites.Add(newSiteInfo);
-        }
+        return $"BUILD {siteId} BARRACKS-{barracks_type}";
     }
 }
 
+public enum BarracksType
+{
+    Knight = 0,
+    Archer = 1
+}
+
+#endregion
+
+#endregion
+
+
+#region Game Structures
+
 public class Unit
 {
-    Position pos;
-    int owner;
-    int unitType;
-    int health;
+    public Position pos;
+    public Owner owner;
+    public UnitType unitType;
+    public int health;
 
     public Unit(int x, int y, int owner, int unitType, int health)
     {
         this.pos = new Position(x,y);
-        this.owner = owner;
-        this.unitType = unitType;
+        this.owner = (Owner) owner;
+        this.unitType = (UnitType) unitType;
         this.health = health;
     }
 }
@@ -247,11 +247,33 @@ public class GameState
     public int touchedSite;
 
     public int numUnits => units.Count;
+
+    public Unit MyQueen => units.First(u => u.owner == Owner.Friendly && u.unitType == UnitType.Queen);
+}
+
+public enum UnitType
+{
+    Queen = -1,
+    Knight = 0,
+    Archer = 1
+}
+
+public enum StructureType
+{
+    None = -1,
+    Barrcks = 2,
+}
+
+public enum Owner
+{
+    Neutral = -1,
+    Friendly = 0,
+    Enemy = 1
 }
 
 public class GameInfo
 {
-    public List<SiteInfo> sites = new List<SiteInfo>();
+    public Dictionary<int, SiteInfo> sites = new Dictionary<int, SiteInfo>();
     public int numSites;
 
     public string GetSites_ToString()
@@ -281,41 +303,173 @@ public class SiteInfo
 
 public class Site
 {
-    int siteId;
-    int ignore1;
-    int ignore2;
-    int structureType;
-    int owner;
-    int param1;
-    int param2;
+    public int siteId;
+    public int ignore1;
+    public int ignore2;
+    public StructureType structureType;
+    public Owner owner;
+    public int param1;
+    public UnitType creepsType;
 
     public Site(int siteId, int ignore1, int ignore2, int structureType, int owner, int param1, int param2)
     {
         this.siteId = siteId;
         this.ignore1 = ignore1;
         this.ignore2 = ignore2;
-        this.structureType = structureType;
-        this.owner = owner;
+        this.structureType = (StructureType) structureType;
+        this.owner = (Owner) owner;
         this.param1 = param1;
-        this.param2 = param2;
+        this.creepsType = (UnitType) param2;
     }
 }
 
 #endregion        
 
-class Player
-{
-    static void Main(string[] args)
-    {
-        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
 
-        giovannaD_Arco.ParseInputs_Begin();
+public class LaPulzellaD_Orleans
+{
+    public static int MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 1;
+    
+    public GameInfo game;
+
+    public GameState currGameState;
+    
+    public TurnAction think()
+    {
+        TurnAction chosenMove = new TurnAction();
+        Unit myQueen = currGameState.MyQueen;
+
+        //If we are touching a site, we do something with it
+
+        IEnumerable<Site> ownedBarrackses = currGameState.sites.Where(s => s.owner == Owner.Friendly);
         
-        while (true)
+        
+        Site closestUnbuiltSite = SortSites_ByDistance(myQueen.pos, currGameState.sites)
+            .Where(s => s.owner == Owner.Neutral)
+            .FirstOrDefault();
+
+        Site touchedSite = null;
+        if (currGameState.touchedSite != -1)
         {
-            giovannaD_Arco.ParseInputs_Turn();
-            TurnAction move = giovannaD_Arco.think();
-            move.PrintMove();
+            touchedSite = currGameState.sites[currGameState.touchedSite];
+        }
+        
+        
+        
+        
+        if (touchedSite != null && touchedSite.owner == Owner.Neutral)
+        {
+            if (ownedBarrackses.Count(ob => ob.creepsType == UnitType.Knight) < MAX_BARRACKSES_KNIGHTS)
+            {
+                chosenMove.queenAction = new Build(currGameState.touchedSite, BarracksType.Knight);
+            }
+            if (ownedBarrackses.Count(ob => ob.creepsType == UnitType.Archer) < MAX_BARRACKSES_ARCER)
+            {
+                chosenMove.queenAction = new Build(currGameState.touchedSite, BarracksType.Archer);
+            }
+        }
+        else if(ownedBarrackses.Count() < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER)
+        {
+            chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltSite).pos);
+        }
+        else
+        {
+            Position[] angles = { new Position(0,0), new Position(1920,1000)};
+            Position targetAngle;
+
+            targetAngle = angles.OrderBy(a => myQueen.pos.DistanceSqr(a)).First();
+            
+            chosenMove.queenAction = new Move(targetAngle);
+        }
+
+        IEnumerable<Site> baraccksesToTrainFrom = ownedBarrackses.Where(ob => ob.param1 == 0);
+        
+        if (baraccksesToTrainFrom.Any())
+        {
+            chosenMove.trainAction = new Train(baraccksesToTrainFrom); 
+        }
+        else
+        {
+            chosenMove.trainAction = new HaltTraing();
+        }
+        
+        return chosenMove;
+    }
+
+    public List<Site> SortSites_ByDistance(Position startPosition, List<Site> siteList)
+    {
+        IOrderedEnumerable<Site> sortedSitesStream = 
+            siteList
+                .OrderBy(s => startPosition.DistanceSqr(GetSiteInfo(s.siteId).pos));
+
+        return sortedSitesStream.ToList();
+
+    }
+
+    public SiteInfo GetSiteInfo(Site site)
+    {
+        return GetSiteInfo(site.siteId);
+    }
+    
+    public SiteInfo GetSiteInfo(int siteId)
+    {
+        return game.sites[siteId];
+    }
+    
+    public void ParseInputs_Turn()
+    {
+        currGameState = new GameState();
+        
+        var inputs = Console.ReadLine().Split(' ');
+        currGameState.gold = int.Parse(inputs[0]);
+        currGameState.touchedSite = int.Parse(inputs[1]); // -1 if none
+        for (int i = 0; i < game.numSites; i++)
+        {
+            inputs = Console.ReadLine().Split(' ');
+            int siteId = int.Parse(inputs[0]);
+            int ignore1 = int.Parse(inputs[1]); // used in future leagues
+            int ignore2 = int.Parse(inputs[2]); // used in future leagues
+            int structureType = int.Parse(inputs[3]); // -1 = No structure, 2 = Barracks
+            int owner = int.Parse(inputs[4]); // -1 = No structure, 0 = Friendly, 1 = Enemy
+            int param1 = int.Parse(inputs[5]);
+            int param2 = int.Parse(inputs[6]);
+            
+            Site site = new Site(siteId, ignore1, ignore2, structureType, owner, param1, param2);
+            currGameState.sites.Add(site);
+        }
+        
+        int numUnits = int.Parse(Console.ReadLine());
+        for (int i = 0; i < numUnits; i++)
+        {
+            inputs = Console.ReadLine().Split(' ');
+            int x = int.Parse(inputs[0]);
+            int y = int.Parse(inputs[1]);
+            int owner = int.Parse(inputs[2]);
+            int unitType = int.Parse(inputs[3]); // -1 = QUEEN, 0 = KNIGHT, 1 = ARCHER
+            int health = int.Parse(inputs[4]);
+            
+            Unit unit = new Unit(x,y,owner,unitType,health);
+            currGameState.units.Add(unit);
+        }
+    }
+    
+    public void ParseInputs_Begin()
+    {
+        game = new GameInfo();
+        string[] inputs;
+        game.numSites = int.Parse(Console.ReadLine());
+        
+        for (int i = 0; i < game.numSites; i++)
+        {
+            inputs = Console.ReadLine().Split(' ');
+            int siteId = int.Parse(inputs[0]);
+            int x = int.Parse(inputs[1]);
+            int y = int.Parse(inputs[2]);
+            int radius = int.Parse(inputs[3]);
+            
+            SiteInfo newSiteInfo = new SiteInfo(siteId, new Position(x,y), radius);
+            game.sites[siteId] = newSiteInfo;
         }
     }
 }
+
