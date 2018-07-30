@@ -15,6 +15,17 @@ using System.Runtime.CompilerServices;
 public class Position
 {
     public int x, y;
+
+    public Position(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public override string ToString()
+    {
+        return $"({x},{y})";
+    }
 }
 
 #region IActions
@@ -229,27 +240,35 @@ public class Alexander
             int x = int.Parse(inputs[1]);
             int y = int.Parse(inputs[2]);
             int radius = int.Parse(inputs[3]);
+            
+            Site newSite = new Site(siteId, new Position(x,y), radius);
+            game.sites.Add(newSite);
         }
     }
 }
 
 public class GameState
 {
-    public List<Sites> sites;
+    public List<Site> sites = new List<Site>();
     public int numSites;
 }
 
-public class Sites
+public class Site
 {
     public int siteId;
     public Position pos;
     public int radius;
 
-    public Sites(int siteId, Position pos, int radius)
+    public Site(int siteId, Position pos, int radius)
     {
         this.siteId = siteId;
         this.pos = pos;
         this.radius = radius;
+    }
+
+    public override string ToString()
+    {
+        return $"Site {siteId} - Pos: {pos} - Rad: {radius}";
     }
 }
 
@@ -266,6 +285,9 @@ class Player
         while (true)
         {
             alexander.ParseInputs_Turn();
+
+            Console.Error.WriteLine(alexander.game.sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
+            
             TurnAction move = alexander.think();
             move.PrintMove();
         }
