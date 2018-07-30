@@ -35,7 +35,7 @@ public abstract class IAction
     public abstract string ToString_Impl();
     public string message;
 
-    protected IAction(string message = "")
+    public IAction(string message = "")
     {
         this.message = message;
     }
@@ -57,13 +57,13 @@ public abstract class IAction
 
 public class TurnAction : IAction
 {
-    public IAction buildAction;
+    public IAction queenAction;
     public IAction trainAction;
 
     public TurnAction()
     {
         this.message = "";
-        buildAction = new Wait();
+        queenAction = new Wait();
         trainAction = new HaltTraing();
     }
     
@@ -74,7 +74,7 @@ public class TurnAction : IAction
 
     public void PrintMove()
     {
-        Console.WriteLine(buildAction.ToString());
+        Console.WriteLine(queenAction.ToString());
         Console.WriteLine(trainAction.ToString());
     }
 
@@ -89,54 +89,14 @@ public class TurnAction : IAction
     }
 }
 
-//
-//public class TurnAction : IAction
-//{
-//    public List<IAction> buildActions;
-//    public List<IAction> trainActions;
-//
-//    public TurnAction()
-//    {
-//        this.message = "";
-//        buildActions = new List<IAction>(){new Wait()};
-//        buildActions = new List<IAction>(){new HaltTraing()};
-//        
-//    }
-//    
-//    public TurnAction(string message) : base(message)
-//    {
-//        this.message = "";
-//    }
-//
-//    public override string ToString_Impl()
-//    {
-//        string result = "";
-//        foreach (var action in buildActions)
-//        {
-//            result += action.ToString();
-//            result += ";";
-//        }
-//
-//        result += "/n";
-//        
-//        foreach (var action in trainActions)
-//        {
-//            result += action.ToString();
-//            result += ";";
-//        }
-//
-//        return result;
-//    }
-//
-//    public override string ToString()
-//    {
-//        return ToString_Impl();
-//    }
-//}
+#region Train Actions
 
 public class HaltTraing : IAction
 {
     public string actionName = "TRAIN";
+    
+    public HaltTraing(string message = "") : base(message){}
+
     
     public override string ToString_Impl()
     {
@@ -149,16 +109,24 @@ public class Train : IAction
     public string actionName = "TRAIN";
     public int siteId;
 
+    public Train(string message = "") : base(message){}
+    
     public override string ToString_Impl()
     {
         return this.actionName + " "+ this.siteId;
     }
 }
 
+#endregion
+
+#region QueenActions
+
 public class Wait : IAction
 {
     public string actionName = "WAIT";
-    
+
+    public Wait(string message = "") : base(message){}
+
     public override string ToString_Impl()
     {
         return this.actionName;
@@ -170,23 +138,31 @@ public class Move : IAction
     public string actionName = "MOVE";
     public Position targetPos; 
     
+    public Move(string message = "") : base(message){}
+    
     public override string ToString_Impl()
     {
         return actionName + " " + targetPos.x +" " + targetPos.y;
     }
 }
 
-public class Alexander
+#endregion
+
+public class LaPulzellaD_Orleans
 {
-    public GameState game;
+    public GameInfo game;
+
+    public GameState currentGameState;
     
     public void ParseInputs_Turn()
     {
         string[] inputs;
 
+        currentGameState = new GameState();
+        
         inputs = Console.ReadLine().Split(' ');
-        int gold = int.Parse(inputs[0]);
-        int touchedSite = int.Parse(inputs[1]); // -1 if none
+        currentGameState.gold = int.Parse(inputs[0]);
+        currentGameState.touchedSite = int.Parse(inputs[1]); // -1 if none
         for (int i = 0; i < game.numSites; i++)
         {
             inputs = Console.ReadLine().Split(' ');
@@ -197,7 +173,11 @@ public class Alexander
             int owner = int.Parse(inputs[4]); // -1 = No structure, 0 = Friendly, 1 = Enemy
             int param1 = int.Parse(inputs[5]);
             int param2 = int.Parse(inputs[6]);
+            
+            Site site = new Site(siteId, ignore1, ignore2, structureType, owner, param1, param2);
+            currentGameState.sites.Add(site);
         }
+        
         int numUnits = int.Parse(Console.ReadLine());
         for (int i = 0; i < numUnits; i++)
         {
@@ -207,29 +187,25 @@ public class Alexander
             int owner = int.Parse(inputs[2]);
             int unitType = int.Parse(inputs[3]); // -1 = QUEEN, 0 = KNIGHT, 1 = ARCHER
             int health = int.Parse(inputs[4]);
+            
+            Unit unit = new Unit(x,y,owner,unitType,health);
+            currentGameState.units.Add(unit);
         }
-
-        // Write an action using Console.WriteLine()
-        // To debug: Console.Error.WriteLine("Debug messages...");
-
-
-        // First line: A valid queen action
-        // Second line: A set of training instructions
-//            Console.WriteLine("WAIT");
-//            Console.WriteLine("TRAIN");
-    
     }
     
     public TurnAction think()
     {
         TurnAction chosenMove = new TurnAction();
         
+        chosenMove.queenAction = new Wait("Wololoo");
+        chosenMove.trainAction = new HaltTraing("Be patient"); 
+        
         return chosenMove;
     }
 
     public void ParseInputs_Begin()
     {
-        game = new GameState();
+        game = new GameInfo();
         string[] inputs;
         game.numSites = int.Parse(Console.ReadLine());
         
@@ -241,25 +217,56 @@ public class Alexander
             int y = int.Parse(inputs[2]);
             int radius = int.Parse(inputs[3]);
             
-            Site newSite = new Site(siteId, new Position(x,y), radius);
-            game.sites.Add(newSite);
+            SiteInfo newSiteInfo = new SiteInfo(siteId, new Position(x,y), radius);
+            game.sites.Add(newSiteInfo);
         }
+    }
+}
+
+public class Unit
+{
+    Position pos;
+    int owner;
+    int unitType;
+    int health;
+
+    public Unit(int x, int y, int owner, int unitType, int health)
+    {
+        this.pos = new Position(x,y);
+        this.owner = owner;
+        this.unitType = unitType;
+        this.health = health;
     }
 }
 
 public class GameState
 {
     public List<Site> sites = new List<Site>();
-    public int numSites;
+    public List<Unit> units = new List<Unit>();
+    public int gold;
+    public int touchedSite;
+
+    public int numUnits => units.Count;
 }
 
-public class Site
+public class GameInfo
+{
+    public List<SiteInfo> sites = new List<SiteInfo>();
+    public int numSites;
+
+    public string GetSites_ToString()
+    {
+        return sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString());
+    }
+}
+
+public class SiteInfo
 {
     public int siteId;
     public Position pos;
     public int radius;
 
-    public Site(int siteId, Position pos, int radius)
+    public SiteInfo(int siteId, Position pos, int radius)
     {
         this.siteId = siteId;
         this.pos = pos;
@@ -272,23 +279,42 @@ public class Site
     }
 }
 
+public class Site
+{
+    int siteId;
+    int ignore1;
+    int ignore2;
+    int structureType;
+    int owner;
+    int param1;
+    int param2;
+
+    public Site(int siteId, int ignore1, int ignore2, int structureType, int owner, int param1, int param2)
+    {
+        this.siteId = siteId;
+        this.ignore1 = ignore1;
+        this.ignore2 = ignore2;
+        this.structureType = structureType;
+        this.owner = owner;
+        this.param1 = param1;
+        this.param2 = param2;
+    }
+}
+
 #endregion        
 
 class Player
 {
     static void Main(string[] args)
     {
-        Alexander alexander = new Alexander();
+        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
 
-        alexander.ParseInputs_Begin();
+        giovannaD_Arco.ParseInputs_Begin();
         
         while (true)
         {
-            alexander.ParseInputs_Turn();
-
-            Console.Error.WriteLine(alexander.game.sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
-            
-            TurnAction move = alexander.think();
+            giovannaD_Arco.ParseInputs_Turn();
+            TurnAction move = giovannaD_Arco.think();
             move.PrintMove();
         }
     }
