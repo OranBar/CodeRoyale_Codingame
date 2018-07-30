@@ -193,12 +193,12 @@ public class Move : IAction
     }
 }
 
-public class Build : IAction
+public class BuildBarracks : IAction
 {
     public int siteId;
     public string barracks_type;
 
-    public Build(int siteId, BarracksType barracksType, string message = "") : base(message)
+    public BuildBarracks(int siteId, BarracksType barracksType, string message = "") : base(message)
     {
         this.siteId = siteId;
         barracks_type = (barracksType == BarracksType.Knight) ? "KNIGHT" : "ARCHER" ;
@@ -207,6 +207,36 @@ public class Build : IAction
     public override string ToString_Impl()
     {
         return $"BUILD {siteId} BARRACKS-{barracks_type}";
+    }
+}
+
+public class BuildMine : IAction
+{
+    public int siteId;
+
+    public BuildMine(int siteId, string message = "") : base(message)
+    {
+        this.siteId = siteId;
+    }
+
+    public override string ToString_Impl()
+    {
+        return $"BUILD {siteId} MINE";
+    }
+}
+
+public class BuildTower : IAction
+{
+    public int siteId;
+
+    public BuildTower(int siteId, string message = "") : base(message)
+    {
+        this.siteId = siteId;
+    }
+
+    public override string ToString_Impl()
+    {
+        return $"BUILD {siteId} MINE";
     }
 }
 
@@ -262,7 +292,9 @@ public enum UnitType
 public enum StructureType
 {
     None = -1,
-    Barrcks = 2,
+    Mine = 0,
+    Tower = 1,
+    Barrcks = 2
 }
 
 public enum Owner
@@ -305,18 +337,18 @@ public class SiteInfo
 public class Site
 {
     public int siteId;
-    public int ignore1;
-    public int ignore2;
+    public int gold;
+    public int maxMineSize;
     public StructureType structureType;
     public Owner owner;
     public int param1;
     public UnitType creepsType;
 
-    public Site(int siteId, int ignore1, int ignore2, int structureType, int owner, int param1, int param2)
+    public Site(int siteId, int gold, int maxMineSize, int structureType, int owner, int param1, int param2)
     {
         this.siteId = siteId;
-        this.ignore1 = ignore1;
-        this.ignore2 = ignore2;
+        this.gold = gold;
+        this.maxMineSize = maxMineSize;
         this.structureType = (StructureType) structureType;
         this.owner = (Owner) owner;
         this.param1 = param1;
@@ -329,7 +361,7 @@ public class Site
 
 public class LaPulzellaD_Orleans
 {
-    public static int MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 1;
+    public static int MAX_MINES = 2, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 1;
     
     public GameInfo game;
 
@@ -342,7 +374,7 @@ public class LaPulzellaD_Orleans
 
         //If we are touching a site, we do something with it
 
-        IEnumerable<Site> ownedBarrackses = currGameState.sites.Where(s => s.owner == Owner.Friendly);
+        IEnumerable<Site> mySites = currGameState.sites.Where(s => s.owner == Owner.Friendly);
         
         // ReSharper disable once ReplaceWithSingleCallToFirstOrDefault
         Site closestUnbuiltSite = SortSites_ByDistance(myQueen.pos, currGameState.sites)
@@ -355,25 +387,38 @@ public class LaPulzellaD_Orleans
             touchedSite = currGameState.sites[currGameState.touchedSite];
         }
 
-        int owned_knight_barrackses = ownedBarrackses.Count(ob => ob.creepsType == UnitType.Knight);
-        int owned_archer_barrackses = ownedBarrackses.Count(ob => ob.creepsType == UnitType.Archer);
-        int owned_giant_barrackses = ownedBarrackses.Count(ob => ob.creepsType == UnitType.Giant);
-
+        
+        int owned_knight_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Knight);
+        int owned_archer_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Archer);
+        int owned_giant_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Giant);
+        int owned_mines = mySites.Count(ob => ob.structureType == StructureType.Mine);
+        
         int total_owner_barrackses = owned_archer_barrackses + owned_giant_barrackses + owned_knight_barrackses;
         
         bool touchingNeutralSite = touchedSite != null && touchedSite.owner == Owner.Neutral;
+        bool touchingMyMine = touchedSite != null && touchedSite.owner == Owner.Friendly &&
+                              touchedSite.structureType == StructureType.Mine;
         
         if (touchingNeutralSite)
         {
             //Build
-            if (owned_knight_barrackses < MAX_BARRACKSES_KNIGHTS)
+
+            if (owned_mines < MAX_MINES)
             {
-                chosenMove.queenAction = new Build(currGameState.touchedSite, BarracksType.Knight);
+                chosenMove.queenAction = new BuildMine(currGameState.touchedSite);
             }
-            if (owned_archer_barrackses < MAX_BARRACKSES_ARCER)
+            else if (owned_knight_barrackses < MAX_BARRACKSES_KNIGHTS)
             {
-                chosenMove.queenAction = new Build(currGameState.touchedSite, BarracksType.Archer);
+                chosenMove.queenAction = new BuildBarracks(currGameState.touchedSite, BarracksType.Knight);
             }
+            else if (owned_archer_barrackses < MAX_BARRACKSES_ARCER)
+            {
+                chosenMove.queenAction = new BuildBarracks(currGameState.touchedSite, BarracksType.Archer);
+            }
+        }
+        else if (touchingMyMine && IsMineMaxed(touchedSite) == false)
+        {
+            chosenMove.queenAction = new BuildMine(currGameState.touchedSite);
         }
         else if(total_owner_barrackses < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER)
         {
@@ -391,7 +436,7 @@ public class LaPulzellaD_Orleans
             chosenMove.queenAction = new Move(targetAngle);
         }
 
-        IEnumerable<Site> baraccksesToTrainFrom = ownedBarrackses.Where(ob => ob.param1 == 0);
+        IEnumerable<Site> baraccksesToTrainFrom = mySites.Where(ob => ob.param1 == 0);
         
         if (baraccksesToTrainFrom.Any())
         {
@@ -415,6 +460,11 @@ public class LaPulzellaD_Orleans
 
         return sortedSitesStream.ToList();
 
+    }
+
+    private bool IsMineMaxed(Site site)
+    {
+        return site.param1 == site.maxMineSize;
     }
 
     public SiteInfo GetSiteInfo(Site site)
