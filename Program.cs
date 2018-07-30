@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Runtime.CompilerServices;
 
@@ -166,23 +167,16 @@ public class Move : IAction
 
 public class Alexander
 {
-    public void ParseInputs()
+    public GameState game;
+    
+    public void ParseInputs_Turn()
     {
         string[] inputs;
-        int numSites = int.Parse(Console.ReadLine());
-        for (int i = 0; i < numSites; i++)
-        {
-            inputs = Console.ReadLine().Split(' ');
-            int siteId = int.Parse(inputs[0]);
-            int x = int.Parse(inputs[1]);
-            int y = int.Parse(inputs[2]);
-            int radius = int.Parse(inputs[3]);
-        }
-       
+
         inputs = Console.ReadLine().Split(' ');
         int gold = int.Parse(inputs[0]);
         int touchedSite = int.Parse(inputs[1]); // -1 if none
-        for (int i = 0; i < numSites; i++)
+        for (int i = 0; i < game.numSites; i++)
         {
             inputs = Console.ReadLine().Split(' ');
             int siteId = int.Parse(inputs[0]);
@@ -221,11 +215,28 @@ public class Alexander
         
         return chosenMove;
     }
+
+    public void ParseInputs_Begin()
+    {
+        game = new GameState();
+        string[] inputs;
+        game.numSites = int.Parse(Console.ReadLine());
+        
+        for (int i = 0; i < game.numSites; i++)
+        {
+            inputs = Console.ReadLine().Split(' ');
+            int siteId = int.Parse(inputs[0]);
+            int x = int.Parse(inputs[1]);
+            int y = int.Parse(inputs[2]);
+            int radius = int.Parse(inputs[3]);
+        }
+    }
 }
 
 public class GameState
 {
     public List<Sites> sites;
+    public int numSites;
 }
 
 public class Sites
@@ -249,8 +260,14 @@ class Player
     static void Main(string[] args)
     {
         Alexander alexander = new Alexander();
-        alexander.ParseInputs();
-        TurnAction move = alexander.think();
-        move.PrintMove();
+
+        alexander.ParseInputs_Begin();
+        
+        while (true)
+        {
+            alexander.ParseInputs_Turn();
+            TurnAction move = alexander.think();
+            move.PrintMove();
+        }
     }
 }
