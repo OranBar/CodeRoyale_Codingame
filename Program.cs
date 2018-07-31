@@ -285,48 +285,47 @@ public class Unit
     public UnitType unitType;
     public int health;
 
+    public Unit()
+    {
+        
+    }
+    
     public Unit(int x, int y, int owner, int unitType, int health)
     {
-        this.pos = new Position(x,y);
+        this.pos = new Position(x, y);
         this.owner = (Owner) owner;
         this.unitType = (UnitType) unitType;
         this.health = health;
     }
 
-    public string encode()
+    public string Encode()
     {
         StringEncoderBuilder result = new StringEncoderBuilder();
+        if(pos == null){ pos = new Position(); }
         result.Append(pos.x);
         result.Append(pos.y);
-        result.Append((int)owner);
-        result.Append((int)unitType);
+        result.Append((int) owner);
+        result.Append((int) unitType);
         result.Append(health);
         return result.Build();
     }
 
-    public void decode(string encoded)
+    public void Decode(string encoded)
     {
-        encoded = encode().Replace("x", "-1.");
+        encoded = encoded.Replace("x", "-1.");
+        Console.Error.WriteLine(encoded);
         String[] values = encoded.Split('.');
         pos = new Position();
         pos.x = int.Parse(values[0]);
         pos.y = int.Parse(values[1]);
-        owner = (Owner)int.Parse(values[3]);
-        unitType = (UnitType)int.Parse(values[4]);
-        health = int.Parse(values[5]);
+        owner = (Owner) int.Parse(values[2]);
+        unitType = (UnitType) int.Parse(values[3]);
+        health = int.Parse(values[4]);
     }
 
-    private int ParseInt(string s)
+    public override string ToString()
     {
-        int result = -1;
-        
-        if (s != "x")
-        {
-            result = int.Parse(s);
-        }
-
-        return result;
-
+        return $"Pos: {pos} - Owner: {owner} - UnitType {unitType} - health {health}";
     }
 }
 
@@ -354,7 +353,7 @@ public class GameState
         result.Append(noOfUnits+".");
         for (int i = 0; i < units.Count; i++)
         {
-            result.Append(units[i].encode());
+            result.Append(units[i].Encode());
         }
 
         result.Append(money);
@@ -533,12 +532,12 @@ public class LaPulzellaD_Orleans
     public TurnAction think()
     {
 
-        var site = currGameState.sites[new Random().Next(currGameState.sites.Count-1)];
-        Console.Error.WriteLine($"Site - {site}");
-        var encodedSite = site.Encode();
-        var decodedSite = new Site();
-        decodedSite.Decode(encodedSite);
-        Console.Error.WriteLine($"Site - {decodedSite}");
+        var unit = currGameState.units[new Random().Next(currGameState.units.Count-1)];
+        Console.Error.WriteLine($"Unit - {unit}");
+        var encodedUnit = unit.Encode();
+        var decodedUnit = new Unit();
+        decodedUnit.Decode(encodedUnit);
+        Console.Error.WriteLine($"Unit - {decodedUnit}");
        
         
         TurnAction chosenMove = new TurnAction();
