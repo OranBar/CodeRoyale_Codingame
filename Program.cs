@@ -1,4 +1,6 @@
-﻿/** Code by Oran Bar **/
+﻿//#define RUNLOCAL
+
+/** Code by Oran Bar **/
 
 //The max characters that can be put into the error stream is 1028
 
@@ -24,16 +26,16 @@ using System.Xml.Schema;
 
 class Player
 {
-    private static string testState = "24|0.xxxxxx|1.xxxxxx|2.xxxxxx|3.xxxxxx|4.xxxxxx|5.xxxxxx|6.xxxxxx|7.xxxxxx|8.xxxxxx|9.xxxxxx|10.xxxxxx|11.215.3.xxxx|12.xxxxxx|13.231.3.xxxx|14.xxxxxx|15.xxxxxx|16.xxxxxx|17.xxxxxx|18.xxxxxx|19.xxxxxx|20.xxxxxx|21.xxxxxx|22.xxxxxx|23.xxxxxx|2|145.236.0.x95.|1775.764.1.x95.|100|13|";
-
-//#define RUNLOCAL
+    private static string gameState_Enc = "24|0.xx2.1.0.0.|1.223.1.1.0.516.412.|2.231.1.0.0.1.x|3.xx1.1.156.240.|4.279.4.2.0.0.1.|5.xxxxxx|6.xxxxxx|7.xx1.1.272.304.|8.xxxxxx|9.xxxxxx|10.xxxxxx|11.xxxxxx|12.xxxxxx|13.0.3.xxxx|14.xxxxxx|15.xxxxxx|16.24.4.0.0.4.x|17.xx1.1.328.333.|18.xxxxxx|19.xxxxxx|20.xxxxxx|21.xxxxxx|22.xx0.1.xx|23.243.3.2.0.0.0.|10|824.263.0.1.12.|873.274.0.1.12.|760.261.0.1.30.|922.430.0.1.30.|426.102.0.x27.|1345.209.1.0.23.|1286.298.1.0.23.|1274.241.1.0.23.|1252.276.1.0.23.|1450.367.1.x74.|181|2|";
+    private static string gameInfo_Enc;
 
 #if RUNLOCAL
     static void Main(string[] args)
     {
-        GameState state = new GameState();
-        state.Decode(testState);
-        Console.WriteLine(state);
+        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+        giovannaD_Arco.currGameState.Decode(gameState_Enc);
+        giovannaD_Arco.game.Decode(gameInfo_Enc);
+        giovannaD_Arco.think();
     }
 #else
     static void Main(string[] args)
@@ -41,10 +43,18 @@ class Player
         LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
 
         giovannaD_Arco.ParseInputs_Begin();
+
+        int turn = 0;
         
         while (true)
         {
+            turn++;
             giovannaD_Arco.ParseInputs_Turn();
+            if (turn == 1)
+            {
+                Console.Error.WriteLine("Game Info");
+                Console.Error.WriteLine(giovannaD_Arco.game.Encode()+"\n");
+            }
             Console.Error.WriteLine(giovannaD_Arco.currGameState.Encode());
             TurnAction move = giovannaD_Arco.think();
             move.PrintMove();
@@ -425,7 +435,7 @@ public enum StructureType
     None = -1,
     Mine = 0,
     Tower = 1,
-    Barrcks = 2
+    Barracks = 2
 }
 
 public enum Owner
@@ -438,13 +448,39 @@ public enum Owner
 public class GameInfo
 {
     public Dictionary<int, SiteInfo> sites = new Dictionary<int, SiteInfo>();
-    public HashSet<int> minedOutSites_ids = new HashSet<int>();
-    public int numSites;
+    public HashSet<int> minedOutSites_ids = new HashSet<int>();    //Info passed into Site
+    
+    public int numSites => sites.Count;
 
     public string GetSites_ToString()
     {
         return sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString());
     }
+
+    public string Encode()
+    {
+        StringEncoderBuilder sb = new StringEncoderBuilder(".");
+        sb.Append(sites.Count);
+        for (int i = 0; i < sites.Count; i++)
+        {
+            sb.Append(sites[i].Encode());
+        }
+        return sb.Build();
+    }
+
+    public void Decode(string encoded)
+    {
+        encoded = encoded.Replace("x", "-1.");
+        var values = encoded.Split('.');
+        int sitesCount = int.Parse(values[0]);
+        for (int i = 1; i < sitesCount+1; i++)
+        {
+            SiteInfo site = new SiteInfo();
+            site.Decode(values[i]);
+            sites[site.siteId] = site;
+        }
+    }
+    
 }
 
 public class SiteInfo
@@ -453,6 +489,10 @@ public class SiteInfo
     public Position pos;
     public int radius;
 
+    public SiteInfo()
+    {
+            
+    }
     public SiteInfo(int siteId, Position pos, int radius)
     {
         this.siteId = siteId;
@@ -463,6 +503,25 @@ public class SiteInfo
     public override string ToString()
     {
         return $"Site {siteId} - Pos: {pos} - Rad: {radius}";
+    }
+
+    public string Encode()
+    {
+        StringEncoderBuilder sb = new StringEncoderBuilder(".");
+        sb.Append(siteId);
+        sb.Append(pos.x);
+        sb.Append(pos.y);
+        sb.Append(radius);
+        return sb.Build();
+    }
+    
+    public void Decode(string encoded)
+    {
+        encoded = encoded.Replace("x", "-1.");
+        var values = encoded.Split('.');
+        this.siteId = int.Parse(values[0]);
+        pos = new Position(int.Parse(values[1]), int.Parse(values[2]));
+        radius = int.Parse(values[3]);
     }
 }
 
@@ -475,6 +534,7 @@ public class Site
     public Owner owner;
     public int param1;
     public UnitType creepsType;
+    public bool isMinedOut;
 
     public Site()
     {
@@ -499,7 +559,6 @@ public class Site
 
     public string Encode()
     {
-        
         StringEncoderBuilder result = new StringEncoderBuilder(".");
         result.Append(siteId);
         result.Append(gold);
@@ -508,6 +567,7 @@ public class Site
         result.Append((int) owner);
         result.Append((param1));
         result.Append((int) creepsType);
+        result.Append(isMinedOut);
         return result.Build();
     }
     
@@ -522,6 +582,7 @@ public class Site
         owner = (Owner)(int.Parse(values[4]));
         param1 = int.Parse(values[5]);
         creepsType = (UnitType)(int.Parse(values[6]));
+        isMinedOut = values[7] == "1";
     }
 }
 
@@ -535,6 +596,18 @@ public class StringEncoderBuilder
         this.delimiter = delimiter;
     }
 
+    public void Append(bool b)
+    {
+        if (b)
+        {
+            result.Append("1"+delimiter);
+        }
+        else
+        {
+            result.Append("0"+delimiter);
+        }
+    }
+    
     public void Append(int i)
     {
         if (i == -1)
@@ -573,7 +646,8 @@ public class StringEncoderBuilder
 
 public class LaPulzellaD_Orleans
 {
-    public static int MAX_CONCURRENT_MINES = 2, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 0, MAX_BARRACKSES_GIANT = 0, MAX_TOWERS = 1;
+    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 0, MAX_BARRACKSES_ARCER = 1, MAX_BARRACKSES_GIANT = 0, MAX_TOWERS = 1;
+    public static int GIANT_COST = 140, KNIGHT_COST = 80, ARCHER_COST = 100;
     
     public GameInfo game;
 
@@ -606,9 +680,9 @@ public class LaPulzellaD_Orleans
             .Where(s => s.structureType == StructureType.None && s.owner == Owner.Neutral && IsSiteMinedOut(s.siteId) == false)
             .ToList();
         
-        int owned_knight_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Knight);
-        int owned_archer_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Archer);
-        int owned_giant_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Giant);
+        int owned_knight_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barracks && ob.creepsType == UnitType.Knight);
+        int owned_archer_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barracks && ob.creepsType == UnitType.Archer);
+        int owned_giant_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barracks && ob.creepsType == UnitType.Giant);
         int owned_mines = mySites.Count(ob => ob.structureType == StructureType.Mine && ob.gold > 0);
         int owned_towers = mySites.Count(ob => ob.structureType == StructureType.Tower && ob.owner == Owner.Friendly);
         
@@ -663,8 +737,10 @@ public class LaPulzellaD_Orleans
                 if (flag)
                 {
                     flag = false;
-                    MAX_CONCURRENT_MINES++;
-                    MAX_BARRACKSES_ARCER++;
+                    //MAX_CONCURRENT_MINES++;
+                    MAX_BARRACKSES_KNIGHTS++;
+                    MAX_BARRACKSES_GIANT++;
+                    MAX_TOWERS++;
                 }
 
             }
@@ -675,6 +751,8 @@ public class LaPulzellaD_Orleans
         if (baraccksesToTrainFrom.Any())
         {
             //Train
+
+            DecideUnitsToTrain();
             chosenMove.trainAction = new Train(baraccksesToTrainFrom); 
         }
         else
@@ -684,6 +762,96 @@ public class LaPulzellaD_Orleans
         }
 
         return chosenMove;
+    }
+
+    private IAction DecideUnitsToTrain()
+    {
+        //Copy game state
+        GameState gameState = new GameState();
+        gameState.Decode(currGameState.Encode());
+
+        int availableMoney = gameState.money;
+        
+        Func<double, double, double> archersEvaluation = (archers, enemyUnits) => archers * 3.0 - enemyUnits;
+        Func<double, double, double> giantsEvaluation = (giants, enemyTowers) => giants * 3.0 - enemyTowers;
+        Func<double, double, double, double> knightsEvaluation = (knights, enemyArchers, enemyTowers) => ((knights / 4)- enemyArchers)/2 + (knights - enemyTowers)/2;
+
+        List<Site> sitesThatCanTrainGiants = gameState.sites.Where(s =>
+            s.owner == Owner.Friendly && s.structureType == StructureType.Barracks && s.creepsType == UnitType.Giant)
+            .ToList();
+        
+        List<Site> sitesThatCanTrainKnights = gameState.sites.Where(s =>
+                s.owner == Owner.Friendly && s.structureType == StructureType.Barracks && s.creepsType == UnitType.Knight)
+            .ToList();
+
+        List<Site> sitesThatCanTrainArchers = gameState.sites.Where(s =>
+                s.owner == Owner.Friendly && s.structureType == StructureType.Barracks && s.creepsType == UnitType.Archer)
+            .ToList();
+        
+        double deltaMoreGiants = 0, deltaMoreKnights = 0, deltaMoreArchers = 0;
+        
+        int myGiantsCount =
+            currGameState.units.Count(u => u.owner == Owner.Friendly && u.unitType == UnitType.Giant);
+        
+        int myKnightsCount = 
+            currGameState.units.Count(u => u.owner == Owner.Friendly && u.unitType == UnitType.Knight);
+        
+        int myArchersCount =
+            currGameState.units.Count(u => u.owner == Owner.Friendly && u.unitType == UnitType.Archer);
+        
+        int enemyTowersCount =
+            currGameState.sites.Count(s => s.owner == Owner.Enemy && s.structureType == StructureType.Tower);
+        
+        int enemyArchersCount =
+            currGameState.units.Count(u => u.owner == Owner.Enemy && u.unitType == UnitType.Archer);
+
+        int enemyUnitsCount =
+            currGameState.units.Count(u => u.owner == Owner.Enemy);
+
+        
+        if( availableMoney >= GIANT_COST && sitesThatCanTrainGiants.Count > 0)
+        {
+            
+            double currentGiantScore = giantsEvaluation(myGiantsCount, enemyTowersCount);
+            double scoreWithAdditionalGiant = giantsEvaluation(myGiantsCount+1, enemyTowersCount);
+            deltaMoreGiants = scoreWithAdditionalGiant - currentGiantScore;
+
+        }
+        
+        if( availableMoney >= KNIGHT_COST && sitesThatCanTrainKnights.Count > 0)
+        {
+            double currentKnightScore = knightsEvaluation(myKnightsCount, enemyArchersCount, enemyTowersCount);
+            double scoreWithAdditionalKnight = knightsEvaluation(myKnightsCount+4, enemyArchersCount, enemyTowersCount);
+
+            deltaMoreKnights = scoreWithAdditionalKnight - currentKnightScore;
+        }
+        
+        if( availableMoney >= ARCHER_COST && sitesThatCanTrainArchers.Count > 0)
+        {
+            double currrentArcherScore = archersEvaluation(myArchersCount, enemyUnitsCount);
+            double scoreWithAdditionalArcher = archersEvaluation(myArchersCount+2, enemyUnitsCount);
+            
+            deltaMoreArchers = scoreWithAdditionalArcher - currrentArcherScore;
+        }
+
+//        IOrderedEnumerable<(double, string)> orderedTrainActions = new List<(double, string)>
+//            {
+//                (scoreWithAdditionalKnight, "KNIGHT"),
+//                (scoreWithAdditionalArcher, "ARCHER"),
+//                (scoreWithAdditionalGiant, "GIANT")
+//            }
+//            .OrderBy(el => el.Item1);
+
+        var orderedTrainActions = new double[]
+        {
+            (deltaMoreKnights),
+            (deltaMoreArchers),
+            (deltaMoreGiants)
+        };
+        
+        orderedTrainActions.ToList().ForEach(Console.Error.WriteLine);
+
+        return null;
     }
 
     /**
@@ -790,14 +958,13 @@ public class LaPulzellaD_Orleans
 
            
             Site site = new Site(siteId, gold, maxMineSize, structureType, owner, param1, param2);
+            site.isMinedOut = IsSiteMinedOut(site.siteId);
             currGameState.sites.Add(site);
             
             if (gold == 0 /*&& prevGameState != null && prevGameState.sites[siteId].gold > 0*/)
             {
                 game.minedOutSites_ids.Add(site.siteId);
-                Console.Error.WriteLine("Mined Out Mines-B");
-                game.minedOutSites_ids.ToList().ForEach(Console.Error.WriteLine);
-                Console.Error.WriteLine("Mined Out Mines-E");
+//                game.minedOutSites_ids.ToList().ForEach(Console.Error.WriteLine);
             }
         }
         
@@ -820,9 +987,9 @@ public class LaPulzellaD_Orleans
     {
         game = new GameInfo();
         string[] inputs;
-        game.numSites = int.Parse(Console.ReadLine());
+        int numSites = int.Parse(Console.ReadLine());
         
-        for (int i = 0; i < game.numSites; i++)
+        for (int i = 0; i < numSites; i++)
         {
             inputs = Console.ReadLine().Split(' ');
             int siteId = int.Parse(inputs[0]);
@@ -834,4 +1001,23 @@ public class LaPulzellaD_Orleans
             game.sites[siteId] = newSiteInfo;
         }
     }
+
+//    public string InitGameInfo(string l1, string l2)
+//    {
+//        game = new GameInfo();
+//        string[] inputs;
+//        
+//        int numSites = int.Parse(l1);
+//        for (int i = 0; i < numSites; i++)
+//        {
+//            inputs = l2.Split(' ');
+//            int siteId = int.Parse(inputs[0]);
+//            int x = int.Parse(inputs[1]);
+//            int y = int.Parse(inputs[2]);
+//            int radius = int.Parse(inputs[3]);
+//        
+//            SiteInfo newSiteInfo = new SiteInfo(siteId, new Position(x,y), radius);
+//            game.sites[siteId] = newSiteInfo;
+//        }
+//    }
 }

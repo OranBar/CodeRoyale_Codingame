@@ -2,3 +2,6 @@
 \.idea/
 
 obj/
+bin/Debug/netcoreapp2.0/CodeRoyale_Codingame.runtimeconfig.json
+bin/Debug/netcoreapp2.0/CodeRoyale_Codingame.runtimeconfig.dev.json
+bin/Debug/netcoreapp2.0/CodeRoyale_Codingame.deps.json
