@@ -25,25 +25,32 @@ using System.Xml.Schema;
 class Player
 {
     private static string testState = "24|0.xxxxxx|1.xxxxxx|2.xxxxxx|3.xxxxxx|4.xxxxxx|5.xxxxxx|6.xxxxxx|7.xxxxxx|8.xxxxxx|9.xxxxxx|10.xxxxxx|11.215.3.xxxx|12.xxxxxx|13.231.3.xxxx|14.xxxxxx|15.xxxxxx|16.xxxxxx|17.xxxxxx|18.xxxxxx|19.xxxxxx|20.xxxxxx|21.xxxxxx|22.xxxxxx|23.xxxxxx|2|145.236.0.x95.|1775.764.1.x95.|100|13|";
-    
+
+//#define RUNLOCAL
+
+#if RUNLOCAL
     static void Main(string[] args)
     {
         GameState state = new GameState();
         state.Decode(testState);
         Console.WriteLine(state);
-
-
-//        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
-//
-//        giovannaD_Arco.ParseInputs_Begin();
-//        
-//        while (true)
-//        {
-//            giovannaD_Arco.ParseInputs_Turn();
-//            TurnAction move = giovannaD_Arco.think();
-//            move.PrintMove();
-//        }
     }
+#else
+    static void Main(string[] args)
+    {
+        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+
+        giovannaD_Arco.ParseInputs_Begin();
+        
+        while (true)
+        {
+            giovannaD_Arco.ParseInputs_Turn();
+            Console.Error.WriteLine(giovannaD_Arco.currGameState.Encode());
+            TurnAction move = giovannaD_Arco.think();
+            move.PrintMove();
+        }
+    }
+#endif
 }
 
 public class Position
@@ -320,7 +327,6 @@ public class Unit
     public void Decode(string encoded)
     {
         encoded = encoded.Replace("x", "-1.");
-        Console.Error.WriteLine(encoded);
         String[] values = encoded.Split('.');
         pos = new Position();
         pos.x = int.Parse(values[0]);
@@ -508,7 +514,6 @@ public class Site
     public void Decode(string encoded)
     {
         encoded = encoded.Replace("x", "-1.");
-        //Console.Error.WriteLine(encoded);
         String[] values = encoded.Split('.');
         siteId = int.Parse(values[0]);
         gold = int.Parse(values[1]);
@@ -580,24 +585,6 @@ public class LaPulzellaD_Orleans
     
     public TurnAction think()
     {
-
-//        var unit = currGameState.units[new Random().Next(currGameState.units.Count-1)];
-//        Console.Error.WriteLine($"Unit - {unit}");
-//        var encodedUnit = unit.Encode();
-//        var decodedUnit = new Unit();
-//        decodedUnit.Decode(encodedUnit);
-//        Console.Error.WriteLine($"Unit - {decodedUnit}");
-        
-        Console.Error.WriteLine(currGameState.Encode());
-        
-        
-        Console.Error.WriteLine($"GameState - {currGameState}");
-        var encodedgameState = currGameState.Encode();
-        var decodedgameState = new GameState();
-        decodedgameState.Decode(encodedgameState);
-        Console.Error.WriteLine($"GameState - {currGameState}");
-       
-        
         TurnAction chosenMove = new TurnAction();
         Unit myQueen = currGameState.MyQueen;
         
@@ -608,8 +595,6 @@ public class LaPulzellaD_Orleans
             touchedSite = currGameState.sites[currGameState.touchedSiteId];
         }
         
-        //If we are touching a site, we do something with it
-
         IEnumerable<Site> mySites = currGameState.sites.Where(s => s.owner == Owner.Friendly);
         
         // ReSharper disable once ReplaceWithSingleCallToFirstOrDefault
@@ -620,40 +605,12 @@ public class LaPulzellaD_Orleans
         List<Site> closestUnbuiltMines = SortSites_ByDistance(myQueen.pos, currGameState.sites)
             .Where(s => s.structureType == StructureType.None && s.owner == Owner.Neutral && IsSiteMinedOut(s.siteId) == false)
             .ToList();
-
-
-//        if (touchedSite != null)
-//        {
-//            Console.Error.WriteLine("touchedSite is "+ touchedSite+" isMinedOut = "+IsSiteMinedOut(touchedSite.siteId) );
-//        }
-        
-//        Console.Error.WriteLine("Closest Mines--S");
-//        closestUnbuiltMines.ForEach(Console.Error.WriteLine);
-//        Console.Error.WriteLine("Closest Mines--E");
-//        Console.Error.WriteLine("Other Sites--B");
-//        currGameState.sites.Except(closestUnbuiltMines).ToList().ForEach(Console.Error.WriteLine);
-//        Console.Error.WriteLine("Other Sites--E");
-        
-        
-        
-        
-        //Console.Error.WriteLine( currGameState.sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
-        //Console.Error.WriteLine("Chosen mine "+closestUnbuiltMines.First());
-        
-        
-
         
         int owned_knight_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Knight);
         int owned_archer_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Archer);
         int owned_giant_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Giant);
         int owned_mines = mySites.Count(ob => ob.structureType == StructureType.Mine && ob.gold > 0);
         int owned_towers = mySites.Count(ob => ob.structureType == StructureType.Tower && ob.owner == Owner.Friendly);
-        
-        
-//        Console.Error.WriteLine($"Owned Mines {owned_mines}");
-//        Console.Error.WriteLine($"Closest unbuilt mine {closestUnbuiltMines.FirstOrDefault()}");
-        //Console.Error.WriteLine(mySites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
-        
         
         int total_owner_barrackses = owned_archer_barrackses + owned_giant_barrackses + owned_knight_barrackses;
         
@@ -666,7 +623,8 @@ public class LaPulzellaD_Orleans
         
         bool prev_touchingMyMine = touchedSite != null && touchedSite.owner == Owner.Friendly &&
                                    touchedSite.structureType == StructureType.Mine;
-        
+
+        //If we are touching a site, we do something with it
         if (touchingNeutralSite)
         {
             //Build
@@ -675,12 +633,12 @@ public class LaPulzellaD_Orleans
         }
         else if (touchingMyMine && IsMineMaxed(touchedSite) == false)
         {
-            //Emppower Mine
+            //Empower Mine
             chosenMove.queenAction = new BuildMine(currGameState.touchedSiteId);
         }
         else if (touchingMyTower && touchedSite.param1 <= 700)
         {
-            //Emppower Mine
+            //Emppower Tower
             chosenMove.queenAction = new BuildTower(currGameState.touchedSiteId);
         }
         
