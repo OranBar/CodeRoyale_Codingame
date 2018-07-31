@@ -15,6 +15,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Xml.Schema;
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -42,6 +43,11 @@ public class Position
 {
     public int x, y;
 
+    public Position()
+    {
+        
+    }
+    
     public Position(int x, int y)
     {
         this.x = x;
@@ -295,7 +301,32 @@ public class Unit
         result.Append((int)owner);
         result.Append((int)unitType);
         result.Append(health);
-        return result.ToString();
+        return result.Build();
+    }
+
+    public void decode(string encoded)
+    {
+        encoded = encode().Replace("x", "-1.");
+        String[] values = encoded.Split('.');
+        pos = new Position();
+        pos.x = int.Parse(values[0]);
+        pos.y = int.Parse(values[1]);
+        owner = (Owner)int.Parse(values[3]);
+        unitType = (UnitType)int.Parse(values[4]);
+        health = int.Parse(values[5]);
+    }
+
+    private int ParseInt(string s)
+    {
+        int result = -1;
+        
+        if (s != "x")
+        {
+            result = int.Parse(s);
+        }
+
+        return result;
+
     }
 }
 
@@ -317,7 +348,7 @@ public class GameState
         result.Append(noOfSites);
         for (int i = 0; i < sites.Count; i++)
         {
-            result.Append(sites[i].encode());
+            result.Append(sites[i].Encode());
         }
         int noOfUnits = units.Count;
         result.Append(noOfUnits+".");
@@ -328,7 +359,7 @@ public class GameState
 
         result.Append(money);
         result.Append(touchedSiteId);
-        return result.ToString();
+        return result.Build();
     }
 }
 
@@ -396,6 +427,11 @@ public class Site
     public int param1;
     public UnitType creepsType;
 
+    public Site()
+    {
+        
+    }
+    
     public Site(int siteId, int gold, int maxMineSize, int structureType, int owner, int param1, int param2)
     {
         this.siteId = siteId;
@@ -412,7 +448,7 @@ public class Site
         return $"Site {siteId} - gold: {gold} - maxMineSize: {maxMineSize} - structureType: {structureType} - owner: {owner} - param1: {param1} - creepsType: {creepsType}";
     }
 
-    public string encode()
+    public string Encode()
     {
         
         StringEncoderBuilder result = new StringEncoderBuilder();
@@ -423,11 +459,13 @@ public class Site
         result.Append((int) owner);
         result.Append((param1));
         result.Append((int) creepsType);
-        return result.ToString();
+        return result.Build();
     }
     
-    public void decode(string encoded)
+    public void Decode(string encoded)
     {
+        encoded = encoded.Replace("x", "-1.");
+        //Console.Error.WriteLine(encoded);
         String[] values = encoded.Split('.');
         siteId = int.Parse(values[0]);
         gold = int.Parse(values[1]);
@@ -468,11 +506,13 @@ public class StringEncoderBuilder
         }
     }
 
-    public string ToString()
+    public string Build()
     {
         return result.ToString();
     }
 }
+
+
 
 #endregion        
 
@@ -492,12 +532,19 @@ public class LaPulzellaD_Orleans
     
     public TurnAction think()
     {
+
+        var site = currGameState.sites[new Random().Next(currGameState.sites.Count-1)];
+        Console.Error.WriteLine($"Site - {site}");
+        var encodedSite = site.Encode();
+        var decodedSite = new Site();
+        decodedSite.Decode(encodedSite);
+        Console.Error.WriteLine($"Site - {decodedSite}");
        
         
         TurnAction chosenMove = new TurnAction();
         Unit myQueen = currGameState.MyQueen;
         
-        Console.Error.WriteLine(currGameState.encode());
+        //Console.Error.WriteLine(currGameState.encode());
 
         Site touchedSite = null;
         if (currGameState.touchedSiteId != -1)
