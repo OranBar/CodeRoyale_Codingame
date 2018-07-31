@@ -1,7 +1,5 @@
 ﻿/** Code by Oran Bar **/
 
-//The max characters that can be put into the error stream is 1028
-
 using System;
 using System.Linq;
 using System.IO;
@@ -12,8 +10,6 @@ using System.Linq.Expressions;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 /**
@@ -87,8 +83,8 @@ public abstract class IAction
 
 public class TurnAction : IAction
 {
-    public IAction queenAction;
-    public IAction trainAction;
+    public IAction queenAction = null;
+    public IAction trainAction = null;
 
     public TurnAction()
     {
@@ -206,20 +202,7 @@ public class BuildBarracks : IAction
     public BuildBarracks(int siteId, BarracksType barracksType, string message = "") : base(message)
     {
         this.siteId = siteId;
-        switch (barracksType)
-        {
-            case BarracksType.Knight:
-                this.barracks_type = "KNIGHT";
-                break;
-            case BarracksType.Archer:
-                this.barracks_type = "ARCHER";
-                break;
-            case BarracksType.Giant:
-                this.barracks_type = "GIANT";
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(barracksType), barracksType, null);
-        }
+        barracks_type = (barracksType == BarracksType.Knight) ? "KNIGHT" : "ARCHER" ;
     }
 
     public override string ToString_Impl()
@@ -261,8 +244,7 @@ public class BuildTower : IAction
 public enum BarracksType
 {
     Knight = 0,
-    Archer = 1,
-    Giant = 2
+    Archer = 1
 }
 
 #endregion
@@ -286,17 +268,6 @@ public class Unit
         this.unitType = (UnitType) unitType;
         this.health = health;
     }
-
-    public string encode()
-    {
-        StringEncoderBuilder result = new StringEncoderBuilder();
-        result.Append(pos.x);
-        result.Append(pos.y);
-        result.Append((int)owner);
-        result.Append((int)unitType);
-        result.Append(health);
-        return result.ToString();
-    }
 }
 
 public class GameState
@@ -304,32 +275,15 @@ public class GameState
     public List<Site> sites = new List<Site>();
     public List<Unit> units = new List<Unit>();
     public int money;
+<<<<<<< HEAD
     public int touchedSiteId;
+=======
+    public int touchedSite;
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
 
     public int numUnits => units.Count;
 
     public Unit MyQueen => units.First(u => u.owner == Owner.Friendly && u.unitType == UnitType.Queen);
-
-    public string encode()
-    {
-        StringEncoderBuilder result = new StringEncoderBuilder();
-        int noOfSites = sites.Count;
-        result.Append(noOfSites);
-        for (int i = 0; i < sites.Count; i++)
-        {
-            result.Append(sites[i].encode());
-        }
-        int noOfUnits = units.Count;
-        result.Append(noOfUnits+".");
-        for (int i = 0; i < units.Count; i++)
-        {
-            result.Append(units[i].encode());
-        }
-
-        result.Append(money);
-        result.Append(touchedSiteId);
-        return result.ToString();
-    }
 }
 
 public enum UnitType
@@ -358,7 +312,11 @@ public enum Owner
 public class GameInfo
 {
     public Dictionary<int, SiteInfo> sites = new Dictionary<int, SiteInfo>();
+<<<<<<< HEAD
     public HashSet<int> minedOutSites_ids = new HashSet<int>();
+=======
+    public List<int> minedOutSites_ids = new List<int>();
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
     public int numSites;
 
     public string GetSites_ToString()
@@ -411,67 +369,6 @@ public class Site
     {
         return $"Site {siteId} - gold: {gold} - maxMineSize: {maxMineSize} - structureType: {structureType} - owner: {owner} - param1: {param1} - creepsType: {creepsType}";
     }
-
-    public string encode()
-    {
-        
-        StringEncoderBuilder result = new StringEncoderBuilder();
-        result.Append(siteId);
-        result.Append(gold);
-        result.Append(maxMineSize);
-        result.Append((int) structureType);
-        result.Append((int) owner);
-        result.Append((param1));
-        result.Append((int) creepsType);
-        return result.ToString();
-    }
-    
-    public void decode(string encoded)
-    {
-        String[] values = encoded.Split('.');
-        siteId = int.Parse(values[0]);
-        gold = int.Parse(values[1]);
-        maxMineSize = int.Parse(values[2]);
-        structureType = (StructureType)(int.Parse(values[3]));
-        owner = (Owner)(int.Parse(values[4]));
-        param1 = int.Parse(values[5]);
-        creepsType = (UnitType)(int.Parse(values[6]));
-    }
-}
-
-public class StringEncoderBuilder
-{
-    private StringBuilder result = new StringBuilder();
-    
-    public void Append(int i)
-    {
-        if (i == -1)
-        {
-            result.Append("x");
-        }
-        else
-        {
-            result.Append(i+".");
-        }
-    }
-    
-    public void Append(string s)
-    {
-
-        if (s == "-1")
-        {
-            result.Append("x");
-        }
-        else
-        {
-            result.Append(s+".");
-        }
-    }
-
-    public string ToString()
-    {
-        return result.ToString();
-    }
 }
 
 #endregion        
@@ -479,25 +376,17 @@ public class StringEncoderBuilder
 
 public class LaPulzellaD_Orleans
 {
-    public static int MAX_CONCURRENT_MINES = 2, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 0, MAX_BARRACKSES_GIANT = 0, MAX_TOWERS = 1;
+    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 1;
     
     public GameInfo game;
 
     public GameState currGameState;
     public GameState prevGameState = null;
-
-    private bool flag = true;
-    
-    
     
     public TurnAction think()
     {
-       
-        
         TurnAction chosenMove = new TurnAction();
         Unit myQueen = currGameState.MyQueen;
-        
-        Console.Error.WriteLine(currGameState.encode());
 
         Site touchedSite = null;
         if (currGameState.touchedSiteId != -1)
@@ -517,19 +406,32 @@ public class LaPulzellaD_Orleans
         List<Site> closestUnbuiltMines = SortSites_ByDistance(myQueen.pos, currGameState.sites)
             .Where(s => s.structureType == StructureType.None && s.owner == Owner.Neutral && IsSiteMinedOut(s.siteId) == false)
             .ToList();
+<<<<<<< HEAD
 
 
-//        if (touchedSite != null)
-//        {
-//            Console.Error.WriteLine("touchedSite is "+ touchedSite+" isMinedOut = "+IsSiteMinedOut(touchedSite.siteId) );
-//        }
+        if (touchedSite != null)
+=======
         
-//        Console.Error.WriteLine("Closest Mines--S");
-//        closestUnbuiltMines.ForEach(Console.Error.WriteLine);
-//        Console.Error.WriteLine("Closest Mines--E");
-//        Console.Error.WriteLine("Other Sites--B");
-//        currGameState.sites.Except(closestUnbuiltMines).ToList().ForEach(Console.Error.WriteLine);
-//        Console.Error.WriteLine("Other Sites--E");
+        Console.Error.WriteLine("Closest Mines--S");
+        closestUnbuiltMines.ForEach(Console.Error.WriteLine);
+        Console.Error.WriteLine("Closest Mines--E");
+        
+        
+        //Console.Error.WriteLine( currGameState.sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
+        //Console.Error.WriteLine("Chosen mine "+closestUnbuiltMines.First());
+        
+        Site touchedSite = null;
+        if (currGameState.touchedSite != -1)
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
+        {
+            Console.Error.WriteLine("touchedSite is "+ touchedSite+" isMinedOut = "+IsSiteMinedOut(touchedSite.siteId) );
+        }
+        Console.Error.WriteLine("Closest Mines--S");
+        closestUnbuiltMines.ForEach(Console.Error.WriteLine);
+        Console.Error.WriteLine("Closest Mines--E");
+        Console.Error.WriteLine("Other Sites--B");
+        currGameState.sites.Except(closestUnbuiltMines).ToList().ForEach(Console.Error.WriteLine);
+        Console.Error.WriteLine("Other Sites--E");
         
         
         
@@ -544,11 +446,9 @@ public class LaPulzellaD_Orleans
         int owned_archer_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Archer);
         int owned_giant_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Giant);
         int owned_mines = mySites.Count(ob => ob.structureType == StructureType.Mine && ob.gold > 0);
-        int owned_towers = mySites.Count(ob => ob.structureType == StructureType.Tower && ob.owner == Owner.Friendly);
-        
-        
-//        Console.Error.WriteLine($"Owned Mines {owned_mines}");
-//        Console.Error.WriteLine($"Closest unbuilt mine {closestUnbuiltMines.FirstOrDefault()}");
+
+        Console.Error.WriteLine($"Owned Mines {owned_mines}");
+        Console.Error.WriteLine($"Closest unbuilt mine {closestUnbuiltMines.FirstOrDefault()}");
         //Console.Error.WriteLine(mySites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
         
         
@@ -558,55 +458,49 @@ public class LaPulzellaD_Orleans
         bool touchingMyMine = touchedSite != null && touchedSite.owner == Owner.Friendly &&
                               touchedSite.structureType == StructureType.Mine;
         
-        bool touchingMyTower = touchedSite != null && touchedSite.owner == Owner.Friendly &&
-                               touchedSite.structureType == StructureType.Tower;
-        
         bool prev_touchingMyMine = touchedSite != null && touchedSite.owner == Owner.Friendly &&
-                                   touchedSite.structureType == StructureType.Mine;
+                              touchedSite.structureType == StructureType.Mine;
         
         if (touchingNeutralSite)
         {
             //Build
-            var chosenBuildMove = ChoseBuildMove(closestUnbuiltMines, touchedSite, owned_mines, owned_knight_barrackses, owned_archer_barrackses, owned_giant_barrackses, owned_towers, myQueen);
-            chosenMove.queenAction = chosenBuildMove;
+            var chosenBuildMove = ChoseBuildMove(closestUnbuiltMines, touchedSite, owned_mines, owned_knight_barrackses, owned_archer_barrackses, myQueen);
+
+<<<<<<< HEAD
+            if (chosenBuildMove != null)
+=======
+            if (owned_mines < MAX_CONCURRENT_MINES && closestUnbuiltMines.Any() && currGameState.touchedSite == closestUnbuiltMines.First().siteId)
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
+            {
+                chosenMove.queenAction = chosenBuildMove;
+            }
         }
         else if (touchingMyMine && IsMineMaxed(touchedSite) == false)
         {
             //Emppower Mine
             chosenMove.queenAction = new BuildMine(currGameState.touchedSiteId);
         }
-        else if (touchingMyTower && touchedSite.param1 <= 700)
+        else if (closestUnbuiltMines.FirstOrDefault() != null && owned_mines < MAX_CONCURRENT_MINES)
         {
-            //Emppower Mine
-            chosenMove.queenAction = new BuildTower(currGameState.touchedSiteId);
+            //Go To Next Mine (Tries to filter our the mined out sites.
+            chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltMines.First()).pos);
+        }
+        else if (closestUnbuiltMines.FirstOrDefault() != null && owned_mines < MAX_CONCURRENT_MINES)
+        {
+            chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltMines.First()).pos);
+        }
+        else if(total_owner_barrackses < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER)
+        {
+            //Go to next closest site
+            chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltSite).pos);
         }
         
-        if(chosenMove.queenAction is Wait)
+        if(chosenMove.queenAction == null)
         {
-            if (closestUnbuiltMines.FirstOrDefault() != null && owned_mines < MAX_CONCURRENT_MINES)
-            {
-                //Go To Next Mine (Tries to filter our the mined out sites.
-                chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltMines.First()).pos);
-            }
-            else if (total_owner_barrackses < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER + MAX_BARRACKSES_GIANT || owned_towers < MAX_TOWERS)
-            {
-                //Go to next closest site
-                chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltSite).pos);
-            }
-            else
-            {
-                //Run to angle
-//                Move moveToAngle = RunToAngle(myQueen);
-//
-//                chosenMove.queenAction = moveToAngle;
-                if (flag)
-                {
-                    flag = false;
-                    MAX_CONCURRENT_MINES++;
-                    MAX_BARRACKSES_ARCER++;
-                }
+            //Run to angle
+            Move moveToAngle = RunToAngle(myQueen);
 
-            }
+            chosenMove.queenAction = moveToAngle;
         }
 
         IEnumerable<Site> baraccksesToTrainFrom = mySites.Where(ob => ob.param1 == 0);
@@ -625,11 +519,12 @@ public class LaPulzellaD_Orleans
         return chosenMove;
     }
 
+<<<<<<< HEAD
     /**
-     * Returns WAIT if Alexander can't mine anymore and has enough buildings.
+     * Returns null if Alexander can't mine anymore and has enough buildings.
      */
     private IAction ChoseBuildMove(List<Site> closestUnbuiltMines, Site touchedSite, int owned_mines,
-        int owned_knight_barrackses, int owned_archer_barrackses, int owned_giant_barrackses, int owned_towers, Unit myQueen)
+        int owned_knight_barrackses, int owned_archer_barrackses, Unit myQueen)
     {
         IAction chosenBuildMove = null;
         
@@ -642,28 +537,19 @@ public class LaPulzellaD_Orleans
             //chosenMove.queenAction = new BuildMine(currGameState.touchedSiteId);
             chosenBuildMove = new BuildMine(currGameState.touchedSiteId);
         }
-        else if (owned_archer_barrackses < MAX_BARRACKSES_ARCER)
-        {
-            //chosenMove.queenAction = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Archer);
-            chosenBuildMove = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Archer);
-        }
         else if (owned_knight_barrackses < MAX_BARRACKSES_KNIGHTS)
         {
             //chosenMove.queenAction = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Knight);
             chosenBuildMove = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Knight);
         }
-        else if (owned_towers < MAX_TOWERS)
-        {
-            chosenBuildMove = new BuildTower(currGameState.touchedSiteId);
-        }
-        else if (owned_giant_barrackses < MAX_BARRACKSES_GIANT)
+        else if (owned_archer_barrackses < MAX_BARRACKSES_ARCER)
         {
             //chosenMove.queenAction = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Archer);
-            chosenBuildMove = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Giant);
+            chosenBuildMove = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Archer);
         }
         else
         {
-            chosenBuildMove = new Wait();
+            chosenBuildMove = null;
         }
 
         return chosenBuildMove;
@@ -678,6 +564,8 @@ public class LaPulzellaD_Orleans
         return new Move(targetAngle);
     }
 
+=======
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
     private bool IsSiteMinedOut(int siteId)
     {
         return game.minedOutSites_ids.Contains(siteId);
@@ -710,12 +598,20 @@ public class LaPulzellaD_Orleans
     
     public void ParseInputs_Turn()
     {
+<<<<<<< HEAD
         prevGameState = currGameState;
+=======
+        var prevGameState = currGameState;
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
         currGameState = new GameState();
         
         var inputs = Console.ReadLine().Split(' ');
         currGameState.money = int.Parse(inputs[0]);
+<<<<<<< HEAD
         currGameState.touchedSiteId = int.Parse(inputs[1]); // -1 if none
+=======
+        currGameState.touchedSite = int.Parse(inputs[1]); // -1 if none
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
         for (int i = 0; i < game.numSites; i++)
         {
             inputs = Console.ReadLine().Split(' ');
@@ -731,12 +627,18 @@ public class LaPulzellaD_Orleans
             Site site = new Site(siteId, gold, maxMineSize, structureType, owner, param1, param2);
             currGameState.sites.Add(site);
             
+<<<<<<< HEAD
             if (gold == 0 /*&& prevGameState != null && prevGameState.sites[siteId].gold > 0*/)
             {
                 game.minedOutSites_ids.Add(site.siteId);
                 Console.Error.WriteLine("Mined Out Mines-B");
                 game.minedOutSites_ids.ToList().ForEach(Console.Error.WriteLine);
                 Console.Error.WriteLine("Mined Out Mines-E");
+=======
+            if (gold <= 0 && prevGameState != null && prevGameState.sites[siteId].gold > 0)
+            {
+                game.minedOutSites_ids.Add(site.siteId);
+>>>>>>> db8c669a8e7439077fee0bcb6cb5ef70a85ef5d3
             }
         }
         
@@ -774,3 +676,4 @@ public class LaPulzellaD_Orleans
         }
     }
 }
+
