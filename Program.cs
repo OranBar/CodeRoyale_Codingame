@@ -236,7 +236,7 @@ public class BuildTower : IAction
 
     public override string ToString_Impl()
     {
-        return $"BUILD {siteId} MINE";
+        return $"BUILD {siteId} TOWER";
     }
 }
 
@@ -273,7 +273,7 @@ public class GameState
 {
     public List<Site> sites = new List<Site>();
     public List<Unit> units = new List<Unit>();
-    public int gold;
+    public int money;
     public int touchedSite;
 
     public int numUnits => units.Count;
@@ -307,6 +307,7 @@ public enum Owner
 public class GameInfo
 {
     public Dictionary<int, SiteInfo> sites = new Dictionary<int, SiteInfo>();
+    public List<int> minedOutSites_ids = new List<int>();
     public int numSites;
 
     public string GetSites_ToString()
@@ -339,7 +340,7 @@ public class Site
     public int siteId;
     public int gold;
     public int maxMineSize;
-    public StructureType structureType;
+    public StructureType structureType = StructureType.None;
     public Owner owner;
     public int param1;
     public UnitType creepsType;
@@ -354,6 +355,11 @@ public class Site
         this.param1 = param1;
         this.creepsType = (UnitType) param2;
     }
+    
+    public override string ToString()
+    {
+        return $"Site {siteId} - gold: {gold} - maxMineSize: {maxMineSize} - structureType: {structureType} - owner: {owner} - param1: {param1} - creepsType: {creepsType}";
+    }
 }
 
 #endregion        
@@ -361,7 +367,7 @@ public class Site
 
 public class LaPulzellaD_Orleans
 {
-    public static int MAX_MINES = 2, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 1;
+    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 1;
     
     public GameInfo game;
 
@@ -380,7 +386,19 @@ public class LaPulzellaD_Orleans
         Site closestUnbuiltSite = SortSites_ByDistance(myQueen.pos, currGameState.sites)
             .Where(s => s.owner == Owner.Neutral)
             .FirstOrDefault();
-
+        
+        List<Site> closestUnbuiltMines = SortSites_ByDistance(myQueen.pos, currGameState.sites)
+            .Where(s => s.structureType == StructureType.None && s.owner == Owner.Neutral && IsSiteMinedOut(s.siteId) == false)
+            .ToList();
+        
+        Console.Error.WriteLine("Closest Mines--S");
+        closestUnbuiltMines.ForEach(Console.Error.WriteLine);
+        Console.Error.WriteLine("Closest Mines--E");
+        
+        
+        //Console.Error.WriteLine( currGameState.sites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
+        //Console.Error.WriteLine("Chosen mine "+closestUnbuiltMines.First());
+        
         Site touchedSite = null;
         if (currGameState.touchedSite != -1)
         {
@@ -391,7 +409,12 @@ public class LaPulzellaD_Orleans
         int owned_knight_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Knight);
         int owned_archer_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Archer);
         int owned_giant_barrackses = mySites.Count(ob => ob.structureType == StructureType.Barrcks && ob.creepsType == UnitType.Giant);
-        int owned_mines = mySites.Count(ob => ob.structureType == StructureType.Mine);
+        int owned_mines = mySites.Count(ob => ob.structureType == StructureType.Mine && ob.gold > 0);
+
+        Console.Error.WriteLine($"Owned Mines {owned_mines}");
+        Console.Error.WriteLine($"Closest unbuilt mine {closestUnbuiltMines.FirstOrDefault()}");
+        //Console.Error.WriteLine(mySites.Aggregate("", (agg, x) => agg + "\n"+ x.ToString()));
+        
         
         int total_owner_barrackses = owned_archer_barrackses + owned_giant_barrackses + owned_knight_barrackses;
         
@@ -403,7 +426,7 @@ public class LaPulzellaD_Orleans
         {
             //Build
 
-            if (owned_mines < MAX_MINES)
+            if (owned_mines < MAX_CONCURRENT_MINES && closestUnbuiltMines.Any() && currGameState.touchedSite == closestUnbuiltMines.First().siteId)
             {
                 chosenMove.queenAction = new BuildMine(currGameState.touchedSite);
             }
@@ -419,6 +442,10 @@ public class LaPulzellaD_Orleans
         else if (touchingMyMine && IsMineMaxed(touchedSite) == false)
         {
             chosenMove.queenAction = new BuildMine(currGameState.touchedSite);
+        }
+        else if (closestUnbuiltMines.FirstOrDefault() != null && owned_mines < MAX_CONCURRENT_MINES)
+        {
+            chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltMines.First()).pos);
         }
         else if(total_owner_barrackses < MAX_BARRACKSES_KNIGHTS + MAX_BARRACKSES_ARCER)
         {
@@ -452,6 +479,11 @@ public class LaPulzellaD_Orleans
         return chosenMove;
     }
 
+    private bool IsSiteMinedOut(int siteId)
+    {
+        return game.minedOutSites_ids.Contains(siteId);
+    }
+
     public List<Site> SortSites_ByDistance(Position startPosition, List<Site> siteList)
     {
         IOrderedEnumerable<Site> sortedSitesStream = 
@@ -479,24 +511,31 @@ public class LaPulzellaD_Orleans
     
     public void ParseInputs_Turn()
     {
+        var prevGameState = currGameState;
         currGameState = new GameState();
         
         var inputs = Console.ReadLine().Split(' ');
-        currGameState.gold = int.Parse(inputs[0]);
+        currGameState.money = int.Parse(inputs[0]);
         currGameState.touchedSite = int.Parse(inputs[1]); // -1 if none
         for (int i = 0; i < game.numSites; i++)
         {
             inputs = Console.ReadLine().Split(' ');
             int siteId = int.Parse(inputs[0]);
-            int ignore1 = int.Parse(inputs[1]); // used in future leagues
-            int ignore2 = int.Parse(inputs[2]); // used in future leagues
+            int gold = int.Parse(inputs[1]); // used in future leagues
+            int maxMineSize = int.Parse(inputs[2]); // used in future leagues
             int structureType = int.Parse(inputs[3]); // -1 = No structure, 2 = Barracks
             int owner = int.Parse(inputs[4]); // -1 = No structure, 0 = Friendly, 1 = Enemy
             int param1 = int.Parse(inputs[5]);
             int param2 = int.Parse(inputs[6]);
-            
-            Site site = new Site(siteId, ignore1, ignore2, structureType, owner, param1, param2);
+
+           
+            Site site = new Site(siteId, gold, maxMineSize, structureType, owner, param1, param2);
             currGameState.sites.Add(site);
+            
+            if (gold <= 0 && prevGameState != null && prevGameState.sites[siteId].gold > 0)
+            {
+                game.minedOutSites_ids.Add(site.siteId);
+            }
         }
         
         int numUnits = int.Parse(Console.ReadLine());
