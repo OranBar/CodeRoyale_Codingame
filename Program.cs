@@ -24,18 +24,25 @@ using System.Xml.Schema;
 
 class Player
 {
+    private static string testState = "24|0.xxxxxx|1.xxxxxx|2.xxxxxx|3.xxxxxx|4.xxxxxx|5.xxxxxx|6.xxxxxx|7.xxxxxx|8.xxxxxx|9.xxxxxx|10.xxxxxx|11.215.3.xxxx|12.xxxxxx|13.231.3.xxxx|14.xxxxxx|15.xxxxxx|16.xxxxxx|17.xxxxxx|18.xxxxxx|19.xxxxxx|20.xxxxxx|21.xxxxxx|22.xxxxxx|23.xxxxxx|2|145.236.0.x95.|1775.764.1.x95.|100|13|";
+    
     static void Main(string[] args)
     {
-        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+        GameState state = new GameState();
+        state.Decode(testState);
+        Console.WriteLine(state);
 
-        giovannaD_Arco.ParseInputs_Begin();
-        
-        while (true)
-        {
-            giovannaD_Arco.ParseInputs_Turn();
-            TurnAction move = giovannaD_Arco.think();
-            move.PrintMove();
-        }
+
+//        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+//
+//        giovannaD_Arco.ParseInputs_Begin();
+//        
+//        while (true)
+//        {
+//            giovannaD_Arco.ParseInputs_Turn();
+//            TurnAction move = giovannaD_Arco.think();
+//            move.PrintMove();
+//        }
     }
 }
 
@@ -300,7 +307,7 @@ public class Unit
 
     public string Encode()
     {
-        StringEncoderBuilder result = new StringEncoderBuilder();
+        StringEncoderBuilder result = new StringEncoderBuilder(".");
         if(pos == null){ pos = new Position(); }
         result.Append(pos.x);
         result.Append(pos.y);
@@ -340,9 +347,9 @@ public class GameState
 
     public Unit MyQueen => units.First(u => u.owner == Owner.Friendly && u.unitType == UnitType.Queen);
 
-    public string encode()
+    public string Encode()
     {
-        StringEncoderBuilder result = new StringEncoderBuilder();
+        StringEncoderBuilder result = new StringEncoderBuilder("|");
         int noOfSites = sites.Count;
         result.Append(noOfSites);
         for (int i = 0; i < sites.Count; i++)
@@ -350,7 +357,7 @@ public class GameState
             result.Append(sites[i].Encode());
         }
         int noOfUnits = units.Count;
-        result.Append(noOfUnits+".");
+        result.Append(noOfUnits);
         for (int i = 0; i < units.Count; i++)
         {
             result.Append(units[i].Encode());
@@ -359,6 +366,43 @@ public class GameState
         result.Append(money);
         result.Append(touchedSiteId);
         return result.Build();
+    }
+    public void Decode(string encoded)
+    {
+        encoded = encoded.Replace("x", "-1.");
+        encoded = encoded.Remove(encoded.Length - 1);
+        
+        String[] values = encoded.Split('|');
+        int noOfSites = int.Parse(values[0]);
+        for (int i = 1; i < noOfSites+1; i++)
+        {
+            var site = new Site();
+            site.Decode(values[i]);
+            sites.Add(site);
+        }
+        int noOfUnits = int.Parse(values[noOfSites+1]);
+        for (int i = 0; i < noOfUnits; i++)
+        {
+            var unit = new Unit();
+            unit .Decode(values[noOfSites+2+i]);
+            units.Add(unit);
+        }
+
+        this.money = int.Parse(values[values.Length - 2]);
+        this.touchedSiteId= int.Parse(values.Last());
+    }
+
+    public override string ToString()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append($"Money = {money} - touchingSiteId = {touchedSiteId} - touchedSite = {sites.FirstOrDefault(s=>touchedSiteId == s.siteId)}\n" );
+        sb.Append("Sites: \n");
+        sites.ForEach(s => sb.Append(s+"\n"));
+        
+        sb.Append("Units: \n");
+        sites.ForEach(s => sb.Append(s+"\n"));
+
+        return sb.ToString();
     }
 }
 
@@ -450,7 +494,7 @@ public class Site
     public string Encode()
     {
         
-        StringEncoderBuilder result = new StringEncoderBuilder();
+        StringEncoderBuilder result = new StringEncoderBuilder(".");
         result.Append(siteId);
         result.Append(gold);
         result.Append(maxMineSize);
@@ -479,7 +523,13 @@ public class Site
 public class StringEncoderBuilder
 {
     private StringBuilder result = new StringBuilder();
-    
+    private string delimiter;
+
+    public StringEncoderBuilder(string delimiter)
+    {
+        this.delimiter = delimiter;
+    }
+
     public void Append(int i)
     {
         if (i == -1)
@@ -488,7 +538,7 @@ public class StringEncoderBuilder
         }
         else
         {
-            result.Append(i+".");
+            result.Append(i+delimiter);
         }
     }
     
@@ -501,7 +551,7 @@ public class StringEncoderBuilder
         }
         else
         {
-            result.Append(s+".");
+            result.Append(s+delimiter);
         }
     }
 
@@ -528,22 +578,29 @@ public class LaPulzellaD_Orleans
     private bool flag = true;
     
     
-    
     public TurnAction think()
     {
 
-        var unit = currGameState.units[new Random().Next(currGameState.units.Count-1)];
-        Console.Error.WriteLine($"Unit - {unit}");
-        var encodedUnit = unit.Encode();
-        var decodedUnit = new Unit();
-        decodedUnit.Decode(encodedUnit);
-        Console.Error.WriteLine($"Unit - {decodedUnit}");
+//        var unit = currGameState.units[new Random().Next(currGameState.units.Count-1)];
+//        Console.Error.WriteLine($"Unit - {unit}");
+//        var encodedUnit = unit.Encode();
+//        var decodedUnit = new Unit();
+//        decodedUnit.Decode(encodedUnit);
+//        Console.Error.WriteLine($"Unit - {decodedUnit}");
+        
+        Console.Error.WriteLine(currGameState.Encode());
+        
+        
+        Console.Error.WriteLine($"GameState - {currGameState}");
+        var encodedgameState = currGameState.Encode();
+        var decodedgameState = new GameState();
+        decodedgameState.Decode(encodedgameState);
+        Console.Error.WriteLine($"GameState - {currGameState}");
        
         
         TurnAction chosenMove = new TurnAction();
         Unit myQueen = currGameState.MyQueen;
         
-        //Console.Error.WriteLine(currGameState.encode());
 
         Site touchedSite = null;
         if (currGameState.touchedSiteId != -1)
