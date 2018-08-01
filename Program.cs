@@ -26,14 +26,18 @@ using System.Xml.Schema;
 
 class Player
 {
-    private static string gameState_Enc = "24|0.xx2.1.0.0.|1.223.1.1.0.516.412.|2.231.1.0.0.1.x|3.xx1.1.156.240.|4.279.4.2.0.0.1.|5.xxxxxx|6.xxxxxx|7.xx1.1.272.304.|8.xxxxxx|9.xxxxxx|10.xxxxxx|11.xxxxxx|12.xxxxxx|13.0.3.xxxx|14.xxxxxx|15.xxxxxx|16.24.4.0.0.4.x|17.xx1.1.328.333.|18.xxxxxx|19.xxxxxx|20.xxxxxx|21.xxxxxx|22.xx0.1.xx|23.243.3.2.0.0.0.|10|824.263.0.1.12.|873.274.0.1.12.|760.261.0.1.30.|922.430.0.1.30.|426.102.0.x27.|1345.209.1.0.23.|1286.298.1.0.23.|1274.241.1.0.23.|1252.276.1.0.23.|1450.367.1.x74.|181|2|";
-    private static string gameInfo_Enc;
+    private static string gameState_Enc = "24|0.xx0.1.xx0.|1.137.3.0.0.3.x0.|2.xxxxxx0.|3.xxxxxx0.|4.xxxxxx0.|5.xxxxxx0.|6.xxxxxx0.|7.xxxxxx0.|8.xx1.1.784.504.0.|9.299.2.2.0.7.1.0.|10.235.3.0.0.3.x0.|11.xx2.1.1.0.0.|12.xxxxxx0.|13.xxxxxx0.|14.xx0.1.xx0.|15.172.2.0.0.2.x0.|16.xxxxxx0.|17.267.2.2.0.0.0.0.|18.xxxxxx0.|19.xxxxxx0.|20.xx1.1.196.261.0.|21.304.5.2.0.0.0.0.|22.188.2.0.0.2.x0.|23.xx0.1.xx0.|16|798.171.0.1.44.|706.254.0.1.44.|968.332.0.0.25.|836.435.0.0.25.|953.392.0.0.25.|878.440.0.0.25.|916.144.0.x38.|887.199.1.0.15.|866.163.1.0.11.|935.191.1.0.15.|916.227.1.0.15.|1001.233.1.0.20.|958.264.1.0.20.|1091.272.1.0.20.|962.224.1.0.20.|1152.706.1.x45.|38|17|";
+    
+    private static string gameInfo_Enc = 
+        "24|0.1638.587.81.|1.282.413.81.|2.775.578.76.|3.1145.422.76.|4.1571.165.75.|5.349.835.75.|6.1750.340.80.|7.170.660.80.|8.1216.841.69.|9.704.159.69.|10.588.407.86.|11.1332.593.86.|12.693.847.63.|13.1227.153.63.|14.1744.822.86.|15.176.178.86.|16.910.849.61.|17.1010.151.61.|18.540.660.76.|19.1380.340.76.|20.1052.661.79.|21.868.339.79.|22.452.173.83.|23.1468.827.83.|";
 
 #if RUNLOCAL
     static void Main(string[] args)
     {
         LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+        giovannaD_Arco.currGameState = new GameState();
         giovannaD_Arco.currGameState.Decode(gameState_Enc);
+        giovannaD_Arco.game = new GameInfo();
         giovannaD_Arco.game.Decode(gameInfo_Enc);
         giovannaD_Arco.think();
     }
@@ -322,6 +326,17 @@ public class Unit
         this.health = health;
     }
 
+    public double DistanceTo(Site other)
+    {
+        return Math.Sqrt(Math.Pow(this.pos.x - other.pos.x, 2) + Math.Pow(this.pos.y - other.pos.y, 2));
+    }
+    
+    public double DistanceTo(Unit other)
+    {
+        return Math.Sqrt(Math.Pow(this.pos.x - other.pos.x, 2) + Math.Pow(this.pos.y - other.pos.y, 2));
+    }
+    
+
     public string Encode()
     {
         StringEncoderBuilder result = new StringEncoderBuilder(".");
@@ -459,7 +474,7 @@ public class GameInfo
 
     public string Encode()
     {
-        StringEncoderBuilder sb = new StringEncoderBuilder(".");
+        StringEncoderBuilder sb = new StringEncoderBuilder("|");
         sb.Append(sites.Count);
         for (int i = 0; i < sites.Count; i++)
         {
@@ -471,7 +486,7 @@ public class GameInfo
     public void Decode(string encoded)
     {
         encoded = encoded.Replace("x", "-1.");
-        var values = encoded.Split('.');
+        var values = encoded.Split('|');
         int sitesCount = int.Parse(values[0]);
         for (int i = 1; i < sitesCount+1; i++)
         {
@@ -535,6 +550,8 @@ public class Site
     public int param1;
     public UnitType creepsType;
     public bool isMinedOut;
+
+    public Position pos;
 
     public Site()
     {
@@ -646,8 +663,9 @@ public class StringEncoderBuilder
 
 public class LaPulzellaD_Orleans
 {
-    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 0, MAX_BARRACKSES_ARCER = 1, MAX_BARRACKSES_GIANT = 0, MAX_TOWERS = 1;
+    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 0, MAX_BARRACKSES_GIANT = 0, MAX_TOWERS = 1;
     public static int GIANT_COST = 140, KNIGHT_COST = 80, ARCHER_COST = 100;
+    public static int ENEMY_CHECK_RANGE = 200, TOO_MANY_UNITS_NEARBY = 2;
     
     public GameInfo game;
 
@@ -730,20 +748,29 @@ public class LaPulzellaD_Orleans
             }
             else
             {
-                //Run to angle
-//                Move moveToAngle = RunToAngle(myQueen);
-//
-//                chosenMove.queenAction = moveToAngle;
                 if (flag)
                 {
                     flag = false;
-                    //MAX_CONCURRENT_MINES++;
+                    MAX_CONCURRENT_MINES++;
+                    MAX_BARRACKSES_ARCER++;
+//                    MAX_BARRACKSES_KNIGHTS++;
                     MAX_BARRACKSES_KNIGHTS++;
-                    MAX_BARRACKSES_GIANT++;
+//                    MAX_BARRACKSES_GIANT++;
                     MAX_TOWERS++;
                 }
 
             }
+        }
+        
+        //Run to angle if close to enemies. Running takes priority, so we do the computations last
+        var enemyUnitsInMyQueenRange =
+            currGameState.units.Count(u => u.owner == Owner.Enemy && myQueen.DistanceTo(u) <= ENEMY_CHECK_RANGE);
+
+        //Run
+        if (enemyUnitsInMyQueenRange >= TOO_MANY_UNITS_NEARBY)
+        {
+//            Move moveToAngle = RunToAngle(myQueen);
+            chosenMove.queenAction = RunToClosestTowerOrAngle(myQueen);
         }
 
         IEnumerable<Site> baraccksesToTrainFrom = mySites.Where(ob => ob.param1 == 0);
@@ -890,6 +917,11 @@ public class LaPulzellaD_Orleans
             //chosenMove.queenAction = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Archer);
             chosenBuildMove = new BuildBarracks(currGameState.touchedSiteId, BarracksType.Giant);
         }
+        else if (siteHasGold == false)
+        {
+            chosenBuildMove = new BuildTower(currGameState.touchedSiteId);
+
+        }
         else
         {
             chosenBuildMove = new Wait();
@@ -898,13 +930,31 @@ public class LaPulzellaD_Orleans
         return chosenBuildMove;
     }
 
-    private Move RunToAngle(Unit myQueen)
+    private IAction RunToAngle(Unit myQueen)
     {
         Position[] angles = {new Position(0, 0), new Position(1920, 1000)};
         Position targetAngle;
 
         targetAngle = angles.OrderBy(a => myQueen.pos.DistanceSqr(a)).First();
         return new Move(targetAngle);
+    }
+    
+    private IAction RunToClosestTowerOrAngle(Unit myQueen)
+    {
+        Site closestTower =
+            currGameState.sites
+                .Where(s => s.structureType == StructureType.Tower && s.owner == Owner.Friendly)
+                .OrderByDescending(s1 => myQueen.DistanceTo(s1))
+                .FirstOrDefault();
+
+        if (closestTower != null)
+        {
+            return new Move(closestTower.pos);    
+        }
+        else
+        {
+            return RunToAngle(myQueen);
+        }
     }
 
     private bool IsSiteMinedOut(int siteId)
@@ -960,6 +1010,8 @@ public class LaPulzellaD_Orleans
             Site site = new Site(siteId, gold, maxMineSize, structureType, owner, param1, param2);
             site.isMinedOut = IsSiteMinedOut(site.siteId);
             currGameState.sites.Add(site);
+
+            site.pos = game.sites[site.siteId].pos;
             
             if (gold == 0 /*&& prevGameState != null && prevGameState.sites[siteId].gold > 0*/)
             {
