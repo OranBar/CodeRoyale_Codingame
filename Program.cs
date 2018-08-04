@@ -26,10 +26,13 @@ using System.Xml.Schema;
 
 class Player
 {
-    private static string gameState_Enc = "24|0.xx0.1.xx0.|1.137.3.0.0.3.x0.|2.xxxxxx0.|3.xxxxxx0.|4.xxxxxx0.|5.xxxxxx0.|6.xxxxxx0.|7.xxxxxx0.|8.xx1.1.784.504.0.|9.299.2.2.0.7.1.0.|10.235.3.0.0.3.x0.|11.xx2.1.1.0.0.|12.xxxxxx0.|13.xxxxxx0.|14.xx0.1.xx0.|15.172.2.0.0.2.x0.|16.xxxxxx0.|17.267.2.2.0.0.0.0.|18.xxxxxx0.|19.xxxxxx0.|20.xx1.1.196.261.0.|21.304.5.2.0.0.0.0.|22.188.2.0.0.2.x0.|23.xx0.1.xx0.|16|798.171.0.1.44.|706.254.0.1.44.|968.332.0.0.25.|836.435.0.0.25.|953.392.0.0.25.|878.440.0.0.25.|916.144.0.x38.|887.199.1.0.15.|866.163.1.0.11.|935.191.1.0.15.|916.227.1.0.15.|1001.233.1.0.20.|958.264.1.0.20.|1091.272.1.0.20.|962.224.1.0.20.|1152.706.1.x45.|38|17|";
+    private static string gameState_Enc =
+            "24|0.xxxxxx0.|1.xxxxxx0.|2.xxxxxx0.|3.xxxxxx0.|4.xx0.1.xx0.|5.188.3.0.0.3.x0.|6.xxxxxx0.|7.xxxxxx0.|8.xxxxxx0.|9.xxxxxx0.|10.240.3.0.0.3.x0.|11.xx0.1.xx0.|12.xxxxxx0.|13.xxxxxx0.|14.xxxxxx0.|15.xxxxxx0.|16.xx0.1.xx0.|17.185.3.0.0.3.x0.|18.xxxxxx0.|19.xxxxxx0.|20.xxxxxx0.|21.xxxxxx0.|22.xxxxxx0.|23.xxxxxx0.|2|412.315.0.x60.|1404.519.1.x60.|169|10|";
     
     private static string gameInfo_Enc = 
-        "24|0.1638.587.81.|1.282.413.81.|2.775.578.76.|3.1145.422.76.|4.1571.165.75.|5.349.835.75.|6.1750.340.80.|7.170.660.80.|8.1216.841.69.|9.704.159.69.|10.588.407.86.|11.1332.593.86.|12.693.847.63.|13.1227.153.63.|14.1744.822.86.|15.176.178.86.|16.910.849.61.|17.1010.151.61.|18.540.660.76.|19.1380.340.76.|20.1052.661.79.|21.868.339.79.|22.452.173.83.|23.1468.827.83.|";
+        "24|0.1769.151.61.|1.151.849.61.|2.744.169.79.|3.1176.831.79.|4.1680.845.65.|5.240.155.65.|6.1092.589.74.|7.828.411.74.|8.168.578.78.|9.1752.422.78.|10.495.245.78.|11.1425.755.78.|12.1544.256.81.|13.376.744.81.|14.997.157.67.|15.923.843.67.|16.1529.541.65.|17.391.459.65.|18.823.641.63.|19.1097.359.63.|20.1280.180.90.|21.640.820.90.|22.1340.419.62.|23.580.581.62.|";
+
+        
 
 #if RUNLOCAL
     static void Main(string[] args)
@@ -39,6 +42,12 @@ class Player
         giovannaD_Arco.currGameState.Decode(gameState_Enc);
         giovannaD_Arco.game = new GameInfo();
         giovannaD_Arco.game.Decode(gameInfo_Enc);
+
+        foreach (var site in giovannaD_Arco.currGameState.sites)
+        {
+            site.pos = giovannaD_Arco.game.sites[site.siteId].pos;
+        }
+        
         giovannaD_Arco.think();
     }
 #else
@@ -663,7 +672,7 @@ public class StringEncoderBuilder
 
 public class LaPulzellaD_Orleans
 {
-    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 1, MAX_BARRACKSES_ARCER = 0, MAX_BARRACKSES_GIANT = 0, MAX_TOWERS = 1;
+    public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 0, MAX_BARRACKSES_ARCER = 0, MAX_BARRACKSES_GIANT = 1, MAX_TOWERS = 4;
     public static int GIANT_COST = 140, KNIGHT_COST = 80, ARCHER_COST = 100;
     public static int ENEMY_CHECK_RANGE = 200, TOO_MANY_UNITS_NEARBY = 2;
     
@@ -688,11 +697,15 @@ public class LaPulzellaD_Orleans
         }
         
         IEnumerable<Site> mySites = currGameState.sites.Where(s => s.owner == Owner.Friendly);
+
         
         // ReSharper disable once ReplaceWithSingleCallToFirstOrDefault
         Site closestUnbuiltSite = SortSites_ByDistance(myQueen.pos, currGameState.sites)
-            .Where(s => s.owner == Owner.Neutral)
+            .Where(s => s.owner == Owner.Neutral 
+                        && currGameState.units.Where(u => u.owner == Owner.Enemy).Count(u => u.DistanceTo(s) < ENEMY_CHECK_RANGE) < TOO_MANY_UNITS_NEARBY)
             .FirstOrDefault();
+
+        Site targetMoveSite = closestUnbuiltSite;
         
         List<Site> closestUnbuiltMines = SortSites_ByDistance(myQueen.pos, currGameState.sites)
             .Where(s => s.structureType == StructureType.None && s.owner == Owner.Neutral && IsSiteMinedOut(s.siteId) == false)
@@ -745,16 +758,17 @@ public class LaPulzellaD_Orleans
             {
                 //Go to next closest site
                 chosenMove.queenAction = new Move(GetSiteInfo(closestUnbuiltSite).pos);
+                //Run to angle if close to enemies. Running takes priority, so we do the computations last
             }
             else
             {
                 if (flag)
                 {
                     flag = false;
-                    MAX_CONCURRENT_MINES++;
-                    MAX_BARRACKSES_ARCER++;
-//                    MAX_BARRACKSES_KNIGHTS++;
+//                    MAX_CONCURRENT_MINES++;
+//                    MAX_BARRACKSES_ARCER++;
                     MAX_BARRACKSES_KNIGHTS++;
+//                    MAX_BARRACKSES_KNIGHTS++;
 //                    MAX_BARRACKSES_GIANT++;
                     MAX_TOWERS++;
                 }
@@ -763,24 +777,54 @@ public class LaPulzellaD_Orleans
         }
         
         //Run to angle if close to enemies. Running takes priority, so we do the computations last
-        var enemyUnitsInMyQueenRange =
-            currGameState.units.Count(u => u.owner == Owner.Enemy && myQueen.DistanceTo(u) <= ENEMY_CHECK_RANGE);
+//        var enemyUnitsInMyQueenRange =
+//            currGameState.units.Count(u => u.owner == Owner.Enemy && myQueen.DistanceTo(u) <= ENEMY_CHECK_RANGE);
+//
+//        //Run
+//        if (enemyUnitsInMyQueenRange >= TOO_MANY_UNITS_NEARBY)
+//        {
+////            Move moveToAngle = RunToAngle(myQueen);
+////            chosenMove.queenAction = RunToClosestTowerOrAngle(myQueen);
+//        }
 
-        //Run
-        if (enemyUnitsInMyQueenRange >= TOO_MANY_UNITS_NEARBY)
-        {
-//            Move moveToAngle = RunToAngle(myQueen);
-            chosenMove.queenAction = RunToClosestTowerOrAngle(myQueen);
-        }
-
-        IEnumerable<Site> baraccksesToTrainFrom = mySites.Where(ob => ob.param1 == 0);
+        IEnumerable<Site> myIdleBarracses = mySites
+            .Where(site => site.structureType == StructureType.Barracks && site.param1 == 0);
+        List<Site> barracksesToTrainFrom = new List<Site>();
         
-        if (baraccksesToTrainFrom.Any())
+        if (myIdleBarracses.Any())
         {
             //Train
 
             DecideUnitsToTrain();
-            chosenMove.trainAction = new Train(baraccksesToTrainFrom); 
+            
+            int remainingGold = currGameState.money;
+            foreach (var barraks in myIdleBarracses)
+            {
+                int cost = 0;
+                switch (barraks.creepsType)
+                {
+                    case UnitType.Knight:
+                        cost += KNIGHT_COST;
+                        break;
+                    case UnitType.Archer:
+                        cost += ARCHER_COST;
+                        break;
+                    case UnitType.Giant:
+                        cost += GIANT_COST;
+                        break;
+                }
+                
+                if (remainingGold >= cost)
+                {
+                    barracksesToTrainFrom.Add(barraks);
+                    remainingGold -= cost;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            chosenMove.trainAction = new Train(barracksesToTrainFrom); 
         }
         else
         {
