@@ -1,4 +1,4 @@
-﻿//#define RUNLOCAL
+﻿#define RUNLOCAL
 
 /** Code by Oran Bar **/
 
@@ -11,7 +11,6 @@ using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -19,23 +18,404 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Schema;
 
+
 /**
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
 
+
+public interface DistanceFunc
+{
+	double computeDistance(int x1, int y1, int x2, int y2);
+}
+
+public class EuclideanDistanceSqr : DistanceFunc {
+
+	public double computeDistance(int x1, int y1, int x2, int y2)
+	{
+		return Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2);
+	}
+}
+
+public struct XAndY
+{
+	public int x, y;
+
+	public XAndY(int x, int y)
+	{
+		this.x = x;
+		this.y = y;
+	}
+}
+
+public class InfluenceMap
+{
+	protected double[][] _influenceMap;
+	protected int width, height;
+
+	private double minInfluence, maxInfluence;
+
+	public int getWidth()
+	{
+		return width;
+	}
+
+	public int getHeight()
+	{
+		return height;
+	}
+
+	public DistanceFunc computeDistanceFunc;
+
+
+	public double this[int x, int y] {
+		get {
+			return get(x, y);
+		}
+		set {
+			_influenceMap[x][y] = value;
+		}
+	}
+
+	public InfluenceMap()
+	{
+			
+	}
+	
+	public InfluenceMap(int width, int height, double minInfluence, double maxInfluence, DistanceFunc computeDistanceFunc)
+	{
+		this.width = width;
+		this.height = height;
+		this._influenceMap = new double[width][];
+		for (int i = 0; i < width; i++)
+		{
+			this._influenceMap[i] = new double[height];
+		}
+		this.computeDistanceFunc = computeDistanceFunc;
+		this.minInfluence = minInfluence;
+		this.maxInfluence = maxInfluence;
+		myHashset = new HashSet<XAndY>();
+	}
+
+	private bool isInBounds(int x, int y)
+	{
+		return x >= 0 && x < width && y>=0 && y < height;
+	}
+
+	/**
+	 * Returns 1 if the amount was correctly set, 0 if the x,y were out of the map's bounds. 
+	 */
+	private int SetAmount_IfInBounds(int x, int y, double amount)
+	{
+		if (isInBounds(x, y))
+		{
+			this[x, y] = amount;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	public double get(int x, int y)
+	{
+		var amount = _influenceMap[x][y];
+		var clampedAmount = Clamp(amount, minInfluence, maxInfluence);
+		return clampedAmount;
+	}
+	
+	public double Clamp(double value, double min, double max)  
+    {  
+        return (value < min) ? min : (value > max) ? max : value;  
+    }
+
+	public List<XAndY> getNeighbours(int x, int y)
+	{
+		List<XAndY> neighbours = new List<XAndY>();
+		for (int i = -1; i <= 1; i++)
+		{
+			for (int j = -1; j <= 1; j++)
+			{
+				if (i == 0 && j == 0) { continue; }
+
+				int xNeighbour = x - i, yNeighbour = y - j;
+				if (xNeighbour >= 0 && xNeighbour <= width - 1
+				&& yNeighbour >= 0 && yNeighbour <= height - 1)
+				{
+					neighbours.Add(new XAndY( xNeighbour, yNeighbour ));
+				}
+			}
+		}
+		return neighbours;
+	}
+
+
+	//public int[][] getNeighbours(int x, int y)
+	//{
+	//	int noOfNeighbours = 8;
+	//	if (x == 0 || x == width - 1)
+	//	{
+	//		noOfNeighbours -= 3;
+	//	}
+	//	if (y == 0 || y == width - 1)
+	//	{
+	//		if (noOfNeighbours < 8)
+	//		{
+	//			noOfNeighbours -= 2;
+	//		}
+	//		noOfNeighbours -= 3;
+	//	}
+
+	//	int currNeighbours = 0;
+	//	int[][] neighbours = new int[noOfNeighbours][];
+	//	for (int i = -1; i <= 1; i++)
+	//	{
+	//		for (int j = -1; j <= 1; j++)
+	//		{
+	//			if (i == 0 && j == 0) { continue; }
+
+	//			int xNeighbour = x - i, yNeighbour = y - j;
+	//			if (xNeighbour >= 0 && xNeighbour <= width - 1
+	//			&& yNeighbour >= 0 && yNeighbour <= height - 1)
+	//			{
+	//				neighbours[currNeighbours] = new int[] { xNeighbour, yNeighbour };
+	//				currNeighbours++;
+	//			}
+	//		}
+	//	}
+	//	return neighbours;
+	//}
+
+	private HashSet<XAndY> myHashset;
+
+	public void applyInfluence(int x, int y, double amount, int fullDistance, int decayedDistance, double distanceDecay)
+	{
+		SetAmount_IfInBounds(x, y, amount);
+
+		for (int range = 1; range <= fullDistance + decayedDistance; range++)
+		{
+			if (range > fullDistance)
+			{
+				amount *= distanceDecay;
+			}
+			SetAmount_IfInBounds(x + range, y + 0, amount);
+			SetAmount_IfInBounds(x - range, y + 0, amount);
+			
+			SetAmount_IfInBounds(x + 0, y + range, amount);
+			SetAmount_IfInBounds(x + 0, y - range, amount);
+
+			for (int diagonal = 1; diagonal < range; diagonal++)
+			{
+				double influenceToApply = amount;
+				//we fill the rombo by mirroring 1/4 of the shape. (an edge connected to the center)
+				int fails = 0;
+				fails += SetAmount_IfInBounds(x + range - diagonal, y - diagonal, amount);
+				fails += SetAmount_IfInBounds(x + range - diagonal, y + diagonal, amount);
+				fails += SetAmount_IfInBounds(x - range + diagonal, y + diagonal, amount);
+				fails += SetAmount_IfInBounds(x - range + diagonal, y - diagonal, amount);
+				//if(fails == 4) { break; }
+				//_influenceMap[x + range - diagonal][y - diagonal] = amount;
+				//_influenceMap[x + range - diagonal][y + diagonal] = amount;
+				//_influenceMap[x + range + diagonal][y + diagonal] = amount;
+				//_influenceMap[x + range + diagonal][y - diagonal] = amount;
+			}
+		}
+	}
+
+	public void applyInfluenceStars(int x, int y, double amount, int fullDistance, int decayedDistance, double distanceDecay)
+	{
+		SetAmount_IfInBounds(x, y, amount);
+
+		for (int range = 1; range < fullDistance + decayedDistance; range++)
+		{
+			if (range > fullDistance)
+			{
+				amount *= distanceDecay;
+			}
+			SetAmount_IfInBounds(x + range, y + 0, amount);
+			SetAmount_IfInBounds(x + 0, y + range, amount);
+			SetAmount_IfInBounds(x - range, y + 0, amount);
+			SetAmount_IfInBounds(x + 0, y - range, amount);
+		}
+	}
+
+//	private int TrySetAmount(int x, int y, double amount)
+//	{
+//		try
+//		{
+//			_influenceMap[x][y] += amount;
+//			return 1;
+////			return true;
+//		}
+//		catch { return 0; } //out of map
+//	}
+
+	/// FullAmount Distance is the distance where the full amount will be applied. Then, reducedAmountDistance is the distance that will suffer from decay
+	//public void applyInfluence(int x, int y, double amount, int fullAmountDistance, int reducedAmountDistance, double distanceDecay)
+	//{
+	//	List <XAndY> alreadyExplored = new List<XAndY>();
+	//	applyInfluenceRecursive(x, y, amount, fullAmountDistance, reducedAmountDistance, distanceDecay, alreadyExplored);
+	//}
+	public void applyInfluenceRecursive(int x, int y, double amount, int fullAmountDistance, int reducedAmountDistance, double distanceDecay, List<XAndY> alreadyExplored)
+	{
+		if (fullAmountDistance < 0 && reducedAmountDistance < 0) { throw new Exception("Error"); }
+
+		try
+		{
+			double foo = _influenceMap[x][y];
+		}
+		catch 
+		{
+			//End of map
+			return;
+		}
+
+
+		//if (fullAmountDistance > 0)
+		//{
+		//	//System.err.println("x "+x+ " y "+y);
+		//	_influenceMap[x][y] = amount;
+		//	myHashset.Clear();
+		//	myHashset.AddRange(getNeighbours(x, y));
+		//	myHashset.ExceptWith(alreadyExplored);
+
+		//	foreach (int[] neighbour in getNeighbours(x, y))
+		//	{
+		//		applyInfluenceRecursive(neighbour[0], neighbour[1], amount, fullAmountDistance - 1, reducedAmountDistance, distanceDecay);
+		//	}
+		//}
+
+		//if (reducedAmountDistance > 0)
+		//{
+		//	_influenceMap[x][y] = amount;
+		//	foreach (int[] neighbour in getNeighbours(x, y))
+		//	{
+		//		applyInfluenceRecursive(neighbour[0], neighbour[1], amount * distanceDecay, fullAmountDistance, reducedAmountDistance - 1, distanceDecay);
+		//	}
+		//}
+
+		//System.err.println("x "+x+ " y "+y);
+
+
+		if(alreadyExplored.Contains(new XAndY(x, y))==false)
+		{
+			_influenceMap[x][y] += amount;
+			alreadyExplored.Add(new XAndY(x,y));
+		}
+		myHashset = new HashSet<XAndY>();
+// 		myHashset.AddRange(getNeighbours(x, y));
+        foreach (var neighbour in getNeighbours(x,y))
+		{
+			myHashset.Add(neighbour);
+		}
+//		myHashset.AddRange(getNeighbours(x, y));
+		myHashset.ExceptWith(alreadyExplored);
+		
+
+		foreach (XAndY neighbour in myHashset)
+		{
+			if (fullAmountDistance > 0)
+			{
+				applyInfluenceRecursive(neighbour.x, neighbour.y, amount, fullAmountDistance - 1, reducedAmountDistance, distanceDecay, alreadyExplored);
+
+			}
+			else if(reducedAmountDistance > 0)
+			{
+				applyInfluenceRecursive(neighbour.x, neighbour.y, amount * distanceDecay, fullAmountDistance, reducedAmountDistance - 1, distanceDecay, alreadyExplored);
+
+			}
+		}
+	}
+
+	public void applyInfluence(double amount, int fullAmountDistance, int reducedAmountDistance, double distanceDecay, params int[] points)
+	{
+		if (points.Length % 2 == 1)
+		{
+		    throw new Exception("invalid number of points args");
+		}
+
+		int noOfPoints = points.Length / 2;
+
+		amount /= noOfPoints;
+
+		for (int i = 0; i < noOfPoints; i++)
+		{
+			int pointX = points[(i * 2)];
+			int pointY = points[(i * 2) + 1];
+
+			applyInfluence(pointX, pointY, amount, fullAmountDistance, reducedAmountDistance, distanceDecay);
+		}
+
+	}
+	
+	//Use two opposite corners, where x1<x2 or y1<y2. They will define the bounds of the search. 
+	//The tile with highest score is selected. If multiple bests, it will select the last
+	public Tuple<int, int> selectBestInBox(int x1, int y1, int x2, int y2)
+	{
+		//TODO: handle casse where x1>x2 or y1>y2?
+		double currBestScore = double.MinValue;
+		Tuple<int, int> currBest = Tuple.Create(-1, -1);
+		for (int currX = x1; currX <= x2; currX++)
+		{
+			for (int currY = y1; currY <= y2; currY++)
+			{
+				if (get(currX, currY) > currBestScore)
+				{
+					currBestScore = get(currX, currY);
+					currBest = Tuple.Create(currX, currY);
+				}
+			}
+		}
+		return currBest;
+	}
+
+
+
+}
+
+public static class Extensions
+{
+	public static bool AddRange<T>(this HashSet<T> @this, IEnumerable<T> items)
+	{
+		bool allAdded = true;
+		foreach (T item in items)
+		{
+			allAdded &= @this.Add(item);
+		}
+		return allAdded;
+	}
+}
+
 class Player
 {
-    private static string gameState_Enc =
+    private static string GAMESTATE_ENC =
             "24|0.xxxxxx0.|1.xxxxxx0.|2.xxxxxx0.|3.xxxxxx0.|4.xx0.1.xx0.|5.188.3.0.0.3.x0.|6.xxxxxx0.|7.xxxxxx0.|8.xxxxxx0.|9.xxxxxx0.|10.240.3.0.0.3.x0.|11.xx0.1.xx0.|12.xxxxxx0.|13.xxxxxx0.|14.xxxxxx0.|15.xxxxxx0.|16.xx0.1.xx0.|17.185.3.0.0.3.x0.|18.xxxxxx0.|19.xxxxxx0.|20.xxxxxx0.|21.xxxxxx0.|22.xxxxxx0.|23.xxxxxx0.|2|412.315.0.x60.|1404.519.1.x60.|169|10|";
     
-    private static string gameInfo_Enc = 
+    private static string GAMEINFO_ENC = 
         "24|0.1769.151.61.|1.151.849.61.|2.744.169.79.|3.1176.831.79.|4.1680.845.65.|5.240.155.65.|6.1092.589.74.|7.828.411.74.|8.168.578.78.|9.1752.422.78.|10.495.245.78.|11.1425.755.78.|12.1544.256.81.|13.376.744.81.|14.997.157.67.|15.923.843.67.|16.1529.541.65.|17.391.459.65.|18.823.641.63.|19.1097.359.63.|20.1280.180.90.|21.640.820.90.|22.1340.419.62.|23.580.581.62.|";
 
         
 
-#if RUNLOCAL
-    static void Main(string[] args)
+//#if RUNLOCAL
+    public static InfluenceMap RunTurn()
+    {
+        LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
+        giovannaD_Arco.currGameState = new GameState();
+        giovannaD_Arco.currGameState.Decode(GAMESTATE_ENC);
+        giovannaD_Arco.game = new GameInfo();
+        giovannaD_Arco.game.Decode(GAMEINFO_ENC);
+
+        foreach (var site in giovannaD_Arco.currGameState.sites)
+        {
+            site.pos = giovannaD_Arco.game.sites[site.siteId].pos;
+        }
+
+        InfluenceMap map = new InfluenceMap();
+        giovannaD_Arco.think(out map);
+        return map;
+    }
+    
+    public static void RunTurn(string gameState_Enc, string gameInfo_Enc)
     {
         LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
         giovannaD_Arco.currGameState = new GameState();
@@ -48,9 +428,10 @@ class Player
             site.pos = giovannaD_Arco.game.sites[site.siteId].pos;
         }
         
-        giovannaD_Arco.think();
+        InfluenceMap map = new InfluenceMap();
+        giovannaD_Arco.think(out map);
     }
-#else
+//#else
     static void Main(string[] args)
     {
         LaPulzellaD_Orleans giovannaD_Arco = new LaPulzellaD_Orleans();
@@ -69,11 +450,12 @@ class Player
                 Console.Error.WriteLine(giovannaD_Arco.game.Encode()+"\n");
             }
             Console.Error.WriteLine(giovannaD_Arco.currGameState.Encode());
-            TurnAction move = giovannaD_Arco.think();
+            InfluenceMap map = new InfluenceMap();
+            TurnAction move = giovannaD_Arco.think(out map);
             move.PrintMove();
         }
     }
-#endif
+//#endif
 }
 
 public class Position
@@ -675,6 +1057,7 @@ public class LaPulzellaD_Orleans
     public static int MAX_CONCURRENT_MINES = 3, MAX_BARRACKSES_KNIGHTS = 0, MAX_BARRACKSES_ARCER = 0, MAX_BARRACKSES_GIANT = 1, MAX_TOWERS = 4;
     public static int GIANT_COST = 140, KNIGHT_COST = 80, ARCHER_COST = 100;
     public static int ENEMY_CHECK_RANGE = 200, TOO_MANY_UNITS_NEARBY = 2;
+    public static int INFLUENCEMAP_SQUARELENGTH = 10;
     
     public GameInfo game;
 
@@ -682,14 +1065,15 @@ public class LaPulzellaD_Orleans
     public GameState prevGameState = null;
 
     private bool flag = true;
+
     
-    
-    public TurnAction think()
+    public TurnAction think(out InfluenceMap turnInfluenceMap)
     {
         TurnAction chosenMove = new TurnAction();
         Unit myQueen = currGameState.MyQueen;
-        
 
+        turnInfluenceMap = CreateInfluenceMap();
+        
         Site touchedSite = null;
         if (currGameState.touchedSiteId != -1)
         {
@@ -833,6 +1217,66 @@ public class LaPulzellaD_Orleans
         }
 
         return chosenMove;
+    }
+
+    private InfluenceMap CreateInfluenceMap()
+    {
+//        double squareLength = (60 * 0.4);
+        double squareLength = INFLUENCEMAP_SQUARELENGTH; //Maximum common divisor between 60, 100, 75, 50 (movement speeds)
+
+        int mapWidth = (int) Math.Ceiling(1980 / squareLength);
+        int mapHeight = (int) Math.Ceiling(1020 / squareLength);
+        double minInfluence = -100;
+        double maxInfluence = 100;
+        InfluenceMap map = new InfluenceMap(mapWidth, mapHeight, minInfluence, maxInfluence, new EuclideanDistanceSqr());
+
+        var enemyUnits = currGameState.units
+            .Where(u => u.owner == Owner.Enemy);
+
+        //Enemy units influence
+        foreach (var enemy in enemyUnits)
+        {
+            Position enemyPos = enemy.pos;
+            double enemyInfluence = GetEnemyInfluence(enemy);
+            map.applyInfluence(enemyPos.x, enemyPos.y, enemyInfluence, GetEnemyInfluenceRadius(enemy), 0, 0);
+        }
+        
+        return map;
+    }
+
+    private double GetEnemyInfluence(Unit enemy)
+    {
+        switch (enemy.unitType)
+        {
+            case UnitType.Queen:
+                return 0;
+            case UnitType.Knight:
+                return 5;
+            case UnitType.Archer:
+                return 0;
+            case UnitType.Giant:
+                return 0;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+    
+    private int GetEnemyInfluenceRadius(Unit enemy)
+    {
+        double squareLength = INFLUENCEMAP_SQUARELENGTH; //Maximum common divisor between 60, 100, 75, 50 (movement speeds)
+        switch (enemy.unitType)
+        {
+            case UnitType.Queen:
+                return (int)(60 / INFLUENCEMAP_SQUARELENGTH);
+            case UnitType.Knight:
+                return (int) (100 / INFLUENCEMAP_SQUARELENGTH);
+            case UnitType.Archer:
+                return (int) (236 / INFLUENCEMAP_SQUARELENGTH); //200 is range, 36 is 1/2 of move range 
+            case UnitType.Giant:
+                return (int) (50 / INFLUENCEMAP_SQUARELENGTH);
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
     }
 
     private IAction DecideUnitsToTrain()
